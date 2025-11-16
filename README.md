@@ -6,7 +6,7 @@ This project is an advanced system for **automatic C++ code generation** for com
 At a high level:
 
 - **Live demo**: [`https://huggingface.co/spaces/amirhoseinnaderali/coder`](https://huggingface.co/spaces/amirhoseinnaderali/coder)  
-- **Benchmark**: evaluated on **IOI 2010 Day 1 – Problem C: “Quality of Living”** and other IOI‑style tasks  
+- **Benchmark**: evaluated on https://huggingface.co/datasets/HumanLastCodeExam/ioi 
 - **Quality signal**: the **first 4 runs** on this benchmark are **fully correct** and show **high‑quality C++ code** generated end‑to‑end  
 - **Test‑time computation**: uses a **multi‑round, multi‑model planning loop** where models share and refine each other’s solutions until they reach a consensus  
 - **Claim**: given enough compute and API budget, this system can realistically reach **~80% success** on this IOI benchmark; current limitations come mainly from **API rate limits and cost**, not from the core algorithmic capabilities.
