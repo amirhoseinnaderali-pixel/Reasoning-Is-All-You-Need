@@ -1,4 +1,5 @@
-## Automatic C++ Code Generation System with AI
+# reasoning is all you neeeed ::)
+
 
 This project is an advanced system for **automatic C++ code generation** for competitive programming (IOI‑style) problems using multiple AI models.
 
