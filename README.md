@@ -1,5 +1,9 @@
 # reasoning is all you neeeed ::)
-#intuition 
+
+
+
+
+# intuition 
 Imagine a classroom where every student is trying to solve the same problem.
 Some students are naturally strong and write great answers right away.
 Others might not be the best at solving the whole problem, but they’re really good at reading everyone else’s reasoning and spotting the strongest idea.
