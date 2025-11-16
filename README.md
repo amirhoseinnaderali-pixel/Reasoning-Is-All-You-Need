@@ -1,5 +1,14 @@
 # reasoning is all you neeeed ::)
-
+#intuition 
+Imagine a classroom where every student is trying to solve the same problem.
+Some students are naturally strong and write great answers right away.
+Others might not be the best at solving the whole problem, but they’re really good at reading everyone else’s reasoning and spotting the strongest idea.
+Now picture all these students sharing their thought process out loud.
+They start learning from each other, picking up better ideas, fixing mistakes, and slowly moving toward a solution they all agree is the best.
+Even the weaker student—who can’t fully solve the problem alone—can still choose the best answer from the group.
+That’s exactly what happens with the models here:
+they propose ideas, read each other’s reasoning, filter, refine, and converge on the strongest solution.
+And that collective “brainstorming” is what makes the system reach a much better final answer.
 
 This project is an advanced system for **automatic C++ code generation** for competitive programming (IOI‑style) problems using multiple AI models.
 
