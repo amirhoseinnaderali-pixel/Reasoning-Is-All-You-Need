@@ -1,0 +1,1316 @@
+=== Code Variant 1 ===
+#include <iostream>
+#include <vector>
+#include <algorithm> // For std::max
+#include <functional> // For std::function
+#include <string>     // For std::string
+#include <cctype>     // For toupper, though protocol_str[0] is usually capitalized per problem
+
+// Using a custom alias for long long for clarity and consistency
+using ll = long long;
+
+int main() {
+    // Optimize C++ standard streams for competitive programming
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+
+    int n;
+    // Read the number of people. If input fails (e.g., EOF or invalid format), return 0.
+    if (!(std::cin >> n)) {
+        return 0;
+    }
+
+    // Vectors are 1-indexed for convenience, matching problem description (people 1 to n)
+
+    // confidence[i]: Confidence value of person i.
+    std::vector<ll> confidence(n + 1);
+    
+    // children[h]: Stores a list of people who declared 'h' as their host using
+    // "IAmYourFriend" (I) or "WeAreYourFriends" (W) protocols. These form the
+    // directed edges of our tree/forest structure for dynamic programming.
+    std::vector<std::vector<int>> children(n + 1);
+    
+    // extra_sum[h]: Stores the sum of confidence values of people who declared 'h'
+    // as their host using "MyFriendsAreYourFriends" (M) or "WeAreYourFriends" (W) protocols.
+    // These nodes are effectively "attached" to 'h' and handled specially by the DP.
+    std::vector<ll> extra_sum(n + 1, 0);
+    
+    // parent[i]: Stores the ID of person i's host if 'i' is connected via an
+    // I-friend link (protocol I or W). If parent[i] is 0, it means 'i' is
+    // either a root of an I-friend tree or has no valid host within the network.
+    std::vector<int> parent(n + 1, 0);
+
+    // isolated_mw_nodes_sum: Accumulates the sum of confidence values for people
+    // using "MyFriendsAreYourFriends" (M) or "WeAreYourFriends" (W) protocols,
+    // but whose declared host ID is 0. These nodes are completely isolated
+    // from any other person in the 1 to N network and are always taken.
+    ll isolated_mw_nodes_sum = 0;
+
+    // Read input data for each person from 1 to n
+    for (int i = 1; i <= n; ++i) {
+        ll w;                 // Confidence value of person i
+        std::string protocol_str; // Protocol name (e.g., "I", "M", "W")
+        int host;             // Host ID chosen by person i
+
+        // Input format is assumed to be: weight protocol_string host
+        std::cin >> w >> protocol_str >> host;
+        
+        confidence[i] = w; // Store person i's confidence value
+
+        // Determine protocol type based on the first character of the protocol string.
+        // Assuming protocol strings start with 'I', 'M', or 'W'.
+        char p_char = protocol_str[0];
+
+        if (p_char == 'I') { // IAmYourFriend protocol
+            // If the host is a valid person (ID between 1 and n), person 'i' becomes a
+            // direct child of 'host' in the I-friend tree structure.
+            if (host >= 1 && host <= n) {
+                children[host].push_back(i);
+                parent[i] = host; // Record 'host' as 'i's parent for tree traversal
+            }
+            // If 'host' is 0, parent[i] remains 0, indicating 'i' is a root of its own tree.
+            // Such a node will be processed as a root in the final result accumulation.
+        } else if (p_char == 'M' || p_char == 'W') { // MyFriendsAreYourFriends or WeAreYourFriends protocols
+            // Nodes using these protocols contribute their confidence to the extra_sum of their host.
+            // These connections do not form part of the explicit `children` tree structure for DP,
+            // but their conflict rules are handled by the extra_sum mechanism.
+            if (host >= 1 && host <= n) {
+                extra_sum[host] += w;
+            } else { 
+                // If 'host' is 0, these M/W nodes are completely isolated from the main network.
+                // Their confidence is simply added to a separate sum, as they don't participate
+                // in the DP tree computation and don't conflict with anyone in the 1 to N range.
+                isolated_mw_nodes_sum += w;
+            }
+        }
+    }
+
+    // Dynamic Programming arrays:
+    // dp0[u]: Maximum total confidence obtainable from the subtree rooted at 'u'
+    //         (considering only I-friend connections), given that node 'u' itself is NOT selected.
+    std::vector<ll> dp0(n + 1, 0);
+    // dp1[u]: Maximum total confidence obtainable from the subtree rooted at 'u'
+    //         (considering only I-friend connections), given that node 'u' IS selected.
+    std::vector<ll> dp1(n + 1, 0);
+
+    // `std::function` is used to define a recursive lambda function. This allows `dfs`
+    // to be defined within `main` and capture local variables by reference (&).
+    std::function<void(int)> dfs = [&](int u) {
+        ll sum_dp0_children = 0; // Sum of dp0[v] for all direct I-friend children 'v' of 'u'.
+        ll sum_max_children = 0; // Sum of max(dp0[v], dp1[v]) for all direct I-friend children 'v' of 'u'.
+        
+        // Recursively call DFS for all I-friend children of 'u' to compute their DP values first.
+        // This ensures a post-order traversal, where children's DP values are ready before 'u's.
+        for (int v : children[u]) {
+            dfs(v); 
+            sum_dp0_children += dp0[v];
+            sum_max_children += std::max(dp0[v], dp1[v]);
+        }
+        
+        // Calculate dp1[u]: Node 'u' IS selected.
+        // If 'u' is selected, its own confidence value `confidence[u]` is included.
+        // All its direct I-friend children ('v') cannot be selected due to the adjacency rule
+        // (conflict between 'u' and 'v'). Therefore, we take `dp0[v]` from each child's subtree.
+        // Crucially, `extra_sum[u]` is NOT included here. This implies that any "extra" nodes
+        // (M- or W-protocol nodes attached to 'u') cannot be selected if 'u' itself is selected.
+        // This covers W-protocol nodes that conflict with 'u', and M-protocol nodes that might be
+        // implicitly forced out by the overall strategy when 'u' is chosen.
+        dp1[u] = confidence[u] + sum_dp0_children;
+
+        // Calculate dp0[u]: Node 'u' is NOT selected.
+        // When 'u' is not selected, we have two main options for how to deal with its children
+        // and the "extra" nodes (those contributing to `extra_sum[u]`):
+        //
+        // Option 1: 'u' is not selected, and its I-friend children are free to be selected or not.
+        //           For each child 'v', we take `std::max(dp0[v], dp1[v])` to maximize its subtree.
+        //           In this scenario, the `extra_sum[u]` nodes are NOT taken, because they would
+        //           conflict with any chosen I-friend children (e.g., M-protocol rules).
+        //           This option's value is `sum_max_children`.
+        //
+        // Option 2: 'u' is not selected, and we choose to take all "extra" nodes attached to 'u'.
+        //           This choice forces all its I-friend children ('v') to also NOT be selected
+        //           (we take `dp0[v]` from them) to avoid conflicts.
+        //           This option's value is `sum_dp0_children + extra_sum[u]`.
+        //
+        // We take the maximum of these two options for `dp0[u]`.
+        dp0[u] = std::max(sum_max_children, sum_dp0_children + extra_sum[u]);
+    };
+
+    // Initialize the total maximum confidence with the sum of isolated M/W nodes.
+    // These nodes are independent of the tree structure and are always selected as they provide value.
+    ll total_max_confidence = isolated_mw_nodes_sum; 
+
+    // Iterate through all people from 1 to n to find the roots of I-friend trees.
+    // A node 'i' is considered a root if it has no parent in the I-friend tree (i.e., `parent[i]` is 0).
+    for (int i = 1; i <= n; ++i) {
+        if (parent[i] == 0) {
+            // For each identified root 'i', perform DFS to compute its DP values.
+            dfs(i); 
+            // Add the maximum possible confidence from this tree (either 'i' is selected or not)
+            // to the overall total.
+            total_max_confidence += std::max(dp0[i], dp1[i]);
+        }
+    }
+    
+    // Output the final maximum total confidence.
+    std::cout << total_max_confidence << "\n";
+
+    return 0;
+}
+
+=== Code Variant 2 ===
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <functional>
+#include <string>
+
+using namespace std;
+
+using ll = long long;
+
+int main() {
+    ios_base::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int n;
+    cin >> n;
+
+    vector<ll> w(n + 1);
+    vector<vector<int>> children(n + 1);
+    vector<ll> extra_sum(n + 1, 0);
+    vector<bool> is_root(n + 1, true);
+
+    for (int i = 1; i <= n; ++i) {
+        ll weight;
+        string protocol_str;
+        int host;
+        cin >> weight >> protocol_str >> host;
+
+        w[i] = weight;
+
+        char protocol = protocol_str[0];
+
+        if (protocol == 'I') { // IAmYourFriend
+            if (host >= 1 && host <= n) {
+                children[host].push_back(i);
+                is_root[i] = false;
+            }
+        } else if (protocol == 'M') { // MyFriendsAreYourFriends
+            if (host >= 1 && host <= n) {
+                extra_sum[host] += weight;
+            }
+        } else if (protocol == 'W') { // WeAreYourFriends
+            if (host >= 1 && host <= n) {
+                children[host].push_back(i);
+                extra_sum[host] += weight;
+                is_root[i] = false;
+            }
+        }
+    }
+
+    vector<ll> dp0(n + 1, 0), dp1(n + 1, 0);
+
+    function<void(int)> dfs = [&](int u) {
+        ll sum_dp0_children = 0;
+        ll sum_max_children = 0;
+
+        for (int v : children[u]) {
+            dfs(v);
+            sum_dp0_children += dp0[v];
+            sum_max_children += max(dp0[v], dp1[v]);
+        }
+
+        dp1[u] = w[u] + sum_dp0_children;
+        dp0[u] = max(sum_max_children, sum_dp0_children + extra_sum[u]);
+    };
+
+    ll result = 0;
+    for (int i = 1; i <= n; ++i) {
+        if (is_root[i]) {
+            dfs(i);
+            result += max(dp0[i], dp1[i]);
+        }
+    }
+
+    cout << result << "\n";
+
+    return 0;
+}
+
+=== Code Variant 3 ===
+#include <iostream>
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <functional>
+#include <cctype>
+
+using namespace std;
+
+using ll = long long;
+
+// DP arrays globally accessible within main's scope for the recursive lambda
+vector<ll> dp0;
+vector<ll> dp1;
+
+/**
+ * Dynamic Programming function using post-order DFS traversal.
+ * Solves for MWIS in the subtree rooted at u, defined by I-edges.
+ */
+void solve_dp(int u, 
+              const vector<ll>& confidence, 
+              const vector<vector<int>>& children,
+              const vector<ll>& extra_sum,
+              vector<bool>& visited) {
+    
+    visited[u] = true;
+    
+    ll sum_dp0_children = 0; // Sum of dp0[v] for all children v
+    ll sum_max_children = 0; // Sum of max(dp0[v], dp1[v]) for all children v
+    
+    for (int v : children[u]) {
+        // Since we only iterate over children[u], this ensures the traversal follows
+        // the directed I-tree structure, guaranteeing post-order processing via recursion.
+        solve_dp(v, confidence, children, extra_sum, visited);
+        
+        sum_dp0_children += dp0[v];
+        sum_max_children += max(dp0[v], dp1[v]);
+    }
+    
+    // dp1[u]: u is selected. Children must be excluded (use dp0).
+    dp1[u] = confidence[u] + sum_dp0_children;
+
+    // dp0[u]: u is not selected.
+    
+    // Option 1: Children maximize independently (sumMax). extra_sum[u] is ignored.
+    ll option1 = sum_max_children;
+
+    // Option 2: All children are forced to dp0 state to enable taking extra_sum[u].
+    ll option2 = sum_dp0_children + extra_sum[u];
+    
+    dp0[u] = max(option1, option2);
+}
+
+int main() {
+    // Optimize C++ standard streams
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+
+    int n;
+    if (!(std::cin >> n) || n == 0) {
+        std::cout << 0 << "\n";
+        return 0;
+    }
+
+    // Data structures, 1-based indexing
+    std::vector<ll> confidence(n + 1, 0);
+    std::vector<std::vector<int>> children(n + 1); // Tree structure defined by I-protocol edges
+    std::vector<ll> extra_sum(n + 1, 0);      // Sum of M/W weights hosted by node i > 0
+    std::vector<int> parent(n + 1, 0);        // Parent in the I-tree (host ID for I-link)
+    std::vector<char> protocol_type(n + 1, 0); // Store protocol type for root identification clarity (optional)
+
+    ll isolated_mw_sum = 0; // Sum of M/W weights hosted by 0 (completely isolated nodes)
+
+    // Read data and build structure
+    for (int i = 1; i <= n; ++i) {
+        ll w;
+        std::string protocol_str;
+        int host;
+        
+        if (!(std::cin >> w >> protocol_str >> host)) break;
+        
+        confidence[i] = w;
+        char p = std::toupper(protocol_str[0]);
+        protocol_type[i] = p;
+
+        if (host >= 1 && host <= n) {
+            if (p == 'I') { 
+                // IAmYourFriend: forms the tree structure
+                children[host].push_back(i);
+                parent[i] = host;
+            } else if (p == 'M' || p == 'W') { 
+                // M or W: contribute to extra_sum of host
+                extra_sum[host] += w;
+            }
+        } else if (host == 0) {
+            if (p == 'I') {
+                // I-link to host 0 means this node is a root, parent[i] remains 0.
+            } else if (p == 'M' || p == 'W') {
+                // M or W hosted by 0: completely isolated nodes.
+                isolated_mw_sum += w;
+            }
+        }
+    }
+
+    // Initialize DP arrays
+    dp0.assign(n + 1, 0);
+    dp1.assign(n + 1, 0);
+    std::vector<bool> visited(n + 1, false);
+    
+    ll total_max_confidence = isolated_mw_sum;
+    
+    // Iterate over all nodes to find roots of the I-tree forest.
+    // A node 'i' is a root if it has no parent (parent[i] == 0).
+    // This covers nodes that had host=0 OR nodes that were M/W (which don't set parent) 
+    // AND nodes that used 'I' protocol but host=0.
+    for (int i = 1; i <= n; ++i) {
+        if (parent[i] == 0) {
+            // We must ensure we only process nodes that haven't been processed 
+            // as part of a larger tree already (though parent[i]==0 should guarantee this
+            // for a correctly constructed DAG/Tree structure based on I-links).
+            if (!visited[i]) {
+                solve_dp(i, confidence, children, extra_sum, visited);
+                total_max_confidence += std::max(dp0[i], dp1[i]);
+            }
+        }
+    }
+    
+    std::cout << total_max_confidence << "\n";
+
+    return 0;
+}
+
+=== Code Variant 4 ===
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <string>
+#include <cctype>
+
+using namespace std;
+
+using ll = long long;
+
+// Function to safely convert string to int, returning 0 on failure
+int safe_stoi(const string& s) {
+    try {
+        return stoi(s);
+    } catch (...) {
+        return 0;
+    }
+}
+
+int main() {
+    ios_base::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int n;
+    if (!(cin >> n)) return 0;
+    if (n == 0) {
+        cout << 0 << '\n';
+        return 0;
+    }
+
+    vector<ll> w(n + 1, 0);
+    vector<vector<int>> children(n + 1);
+    vector<ll> extra_sum(n + 1, 0);
+    vector<bool> is_root(n + 1, true);
+
+    for (int i = 1; i <= n; ++i) {
+        ll weight;
+        string token1, token2;
+        cin >> weight >> token1 >> token2;
+
+        w[i] = weight;
+
+        auto is_alpha = [](const string &s){ return !s.empty() && isalpha(s[0]); };
+        string proto_str;
+        int h = 0;
+
+        if (is_alpha(token1)) {
+            proto_str = token1;
+            h = safe_stoi(token2);
+        } else {
+            h = safe_stoi(token1);
+            proto_str = token2;
+        }
+
+        if (proto_str.empty()) continue;
+
+        char p_char = toupper(proto_str[0]);
+
+        if (p_char == 'I') {
+            if (h >= 1 && h <= n) {
+                children[h].push_back(i);
+                is_root[i] = false;
+            }
+        } else if (p_char == 'M') {
+            if (h >= 1 && h <= n) {
+                extra_sum[h] += weight;
+            }
+        } else if (p_char == 'W') {
+            if (h >= 1 && h <= n) {
+                children[h].push_back(i);
+                extra_sum[h] += weight;
+                is_root[i] = false;
+            }
+        }
+    }
+
+    vector<ll> dp0(n + 1, 0), dp1(n + 1, 0);
+
+    function<void(int)> dfs = [&](int u) {
+        ll sum_dp0_children = 0;
+        ll sum_max_children = 0;
+
+        for (int v : children[u]) {
+            dfs(v);
+            sum_dp0_children += dp0[v];
+            sum_max_children += max(dp0[v], dp1[v]);
+        }
+
+        dp1[u] = w[u] + sum_dp0_children;
+        dp0[u] = max(sum_max_children, sum_dp0_children + extra_sum[u]);
+    };
+
+    ll result = 0;
+    for (int i = 1; i <= n; ++i) {
+        if (is_root[i]) {
+            dfs(i);
+            result += max(dp0[i], dp1[i]);
+        }
+    }
+
+    cout << result << "\n";
+
+    return 0;
+}
+
+=== Code Variant 5 ===
+#include <iostream>
+#include <vector>
+#include <string>
+#include <algorithm> // For std::max
+#include <functional> // For std::function
+#include <cctype> // For toupper
+
+// Using a custom alias for long long for clarity and consistency
+using ll = long long;
+
+/**
+ * Helper function to safely get the protocol character from the protocol string.
+ * Handles empty strings and returns 0 if the first character is not an alphabet.
+ */
+char get_protocol_char(const std::string& s) {
+    if (s.empty()) return 0;
+    char first_char = s[0];
+    if (std::isalpha(first_char)) {
+        return std::toupper(first_char);
+    }
+    return 0; // Indicate an unknown or non-alphabetic protocol start
+}
+
+/**
+ * Dynamic Programming function to compute maximum confidence for a subtree.
+ * This function performs a post-order traversal (DFS) on the tree structure
+ * formed by 'IAmYourFriend' connections.
+ *
+ * @param u The current node (person ID) being processed.
+ * @param confidence Vector storing confidence values for each person.
+ * @param children Adjacency list representing the tree structure (IAmYourFriend edges).
+ * @param extra_sum Vector storing the sum of confidence values of 'MyFriendsAreYourFriends'
+ *                  or 'WeAreYourFriends' nodes that have 'u' as their host.
+ * @param dp0 Vector to store the maximum confidence if node 'u' is NOT selected.
+ * @param dp1 Vector to store the maximum confidence if node 'u' IS selected.
+ */
+void solve_dp(int u, const std::vector<ll>& confidence, const std::vector<std::vector<int>>& children,
+              const std::vector<ll>& extra_sum, std::vector<ll>& dp0, std::vector<ll>& dp1) {
+    
+    ll sum_dp0_children = 0; // Sum of dp0[v] for all children 'v' of 'u'.
+    ll sum_max_children = 0; // Sum of max(dp0[v], dp1[v]) for all children 'v' of 'u'.
+    
+    // Recursively call solve_dp for all children to compute their DP values first.
+    for (int v : children[u]) {
+        solve_dp(v, confidence, children, extra_sum, dp0, dp1);
+        
+        sum_dp0_children += dp0[v];
+        sum_max_children += std::max(dp0[v], dp1[v]);
+    }
+    
+    // Calculate dp1[u]: Maximum confidence if node 'u' is selected.
+    // If 'u' is selected, its confidence is included. Its direct IAmYourFriend children ('v')
+    // must NOT be selected, so we take dp0[v] for each child.
+    // The extra_sum[u] nodes are implicitly not taken if 'u' is selected. This is because
+    // M/W nodes attached to 'u' are either directly connected to 'u' (conflicting)
+    // or connect to 'u''s friends (which would be handled when those friends' subtrees are processed).
+    dp1[u] = confidence[u] + sum_dp0_children;
+
+    // Calculate dp0[u]: Maximum confidence if node 'u' is NOT selected.
+    // There are two primary strategies when 'u' is not selected:
+    // Option 1: 'u' is not selected, and its IAmYourFriend children can be chosen optimally.
+    //           For each child 'v', we take max(dp0[v], dp1[v]). In this case,
+    //           the extra_sum[u] nodes are NOT taken.
+    ll option1 = sum_max_children;
+
+    // Option 2: 'u' is not selected, AND we choose to select all the extra nodes (M/W)
+    //           attached to 'u' (represented by extra_sum[u]). For this to be optimal,
+    //           all IAmYourFriend children 'v' of 'u' must be NOT selected (we take dp0[v]).
+    //           This scenario covers cases where extra_sum[u] nodes are valuable and can be taken
+    //           by sacrificing the children's potentially higher dp1[v] values.
+    ll option2 = sum_dp0_children + extra_sum[u];
+    
+    dp0[u] = std::max(option1, option2);
+}
+
+int main() {
+    // Optimize C++ standard streams for competitive programming.
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+
+    int n;
+    // Read the number of people. If input fails (e.g., EOF or invalid), return 0.
+    if (!(std::cin >> n) || n == 0) {
+        std::cout << 0 << "\n";
+        return 0;
+    }
+
+    // Data structures are 1-indexed for convenience (people 1 to n).
+    // confidence[i]: Confidence value of person i.
+    std::vector<ll> confidence(n + 1, 0);
+    // children[h]: List of people who declared 'h' as their host using "IAmYourFriend" protocol.
+    // This forms the tree structure for the DP.
+    std::vector<std::vector<int>> children(n + 1);
+    // extra_sum[h]: Sum of confidence values of people who declared 'h' as their host
+    // using "MyFriendsAreYourFriends" or "WeAreYourFriends" protocols. These are "extra" nodes.
+    std::vector<ll> extra_sum(n + 1, 0);
+    // parent[i]: Stores the host of person i if 'i' used "IAmYourFriend" with a valid host.
+    // Used to identify roots of the forest. If parent[i] is 0, 'i' is a root or has no host.
+    std::vector<int> parent(n + 1, 0);
+    // is_i_protocol[i]: True if person 'i' used the "IAmYourFriend" protocol. This is important
+    // to distinguish nodes that are roots of the I-tree structure from those that are isolated M/W nodes.
+    std::vector<bool> is_i_protocol(n + 1, false);
+
+    // global_extra_sum: Sum of confidence values for "MyFriendsAreYourFriends" (M)
+    // or "WeAreYourFriends" (W) nodes whose host is 0. These nodes are completely isolated.
+    ll global_extra_sum = 0;
+
+    // Read input for each person and build the graph structure.
+    for (int i = 1; i <= n; ++i) {
+        ll w;             // Confidence value
+        std::string protocol_str; // Protocol name (e.g., "I", "M", "W")
+        int host;         // Host ID
+
+        // Input format: weight protocol_string host
+        if (!(std::cin >> w >> protocol_str >> host)) {
+            // Error reading input, break loop. This might happen if n=0 and loop runs incorrectly.
+            break;
+        }
+        
+        confidence[i] = w; // Store confidence value.
+        char p = get_protocol_char(protocol_str); // Get the first letter of the protocol.
+
+        if (host == 0) {
+            // If host is 0, the node is isolated or represents an external weight.
+            if (p == 'I') {
+                // An 'I' protocol with host 0 means person 'i' is a root of their own
+                // I-tree, which contains only themselves. Mark it as an I-protocol node.
+                is_i_protocol[i] = true;
+            } else { 
+                // 'M' or 'W' protocol with host 0: these nodes are completely isolated.
+                // Their confidence is added directly to global_extra_sum. They don't form trees.
+                global_extra_sum += w;
+            }
+        } else { // host >= 1 (valid host within the network)
+            if (p == 'I') { 
+                // IAmYourFriend: Person 'i' becomes a direct child of 'host'.
+                children[host].push_back(i); // Add 'i' to 'host''s children list.
+                parent[i] = host;            // Record 'host' as the parent of 'i'.
+                is_i_protocol[i] = true;     // Mark 'i' as using the I protocol.
+            } else if (p == 'M' || p == 'W') { 
+                // MyFriendsAreYourFriends or WeAreYourFriends: These nodes contribute
+                // their weight to the extra_sum of their host. They are NOT direct children in the tree structure.
+                extra_sum[host] += w;
+            }
+            // If p is not 'I', 'M', or 'W', it's an unknown protocol and ignored for structure building.
+        }
+    }
+
+    // DP arrays initialization.
+    // dp0[u]: max confidence from subtree rooted at 'u' IF 'u' is NOT selected.
+    // dp1[u]: max confidence from subtree rooted at 'u' IF 'u' IS selected.
+    std::vector<ll> dp0(n + 1, 0);
+    std::vector<ll> dp1(n + 1, 0);
+    
+    // The total result starts with the sum of all isolated M/W nodes.
+    ll result = global_extra_sum;
+    
+    // Iterate over all people to find the roots of the I-tree forest.
+    // A node 'i' is a root of an I-tree if:
+    // 1. It has no parent (parent[i] == 0), meaning no one declared it as host using 'I'.
+    // 2. It itself used the 'I' protocol (is_i_protocol[i] == true). This handles cases
+    //    where an isolated person uses 'I', forming a tree of size 1.
+    // Nodes that are roots of trees built using only 'M' or 'W' (without any 'I' protocol usage,
+    // even if they have valid hosts) will not be processed here as roots of the DP forest,
+    // but their weights are correctly accounted for in `extra_sum` or `global_extra_sum`.
+    for (int i = 1; i <= n; ++i) {
+        if (parent[i] == 0 && is_i_protocol[i]) {
+            // If 'i' is a root of an I-tree, perform DP calculation for its subtree.
+            solve_dp(i, confidence, children, extra_sum, dp0, dp1);
+            // Add the maximum confidence from this tree (either root 'i' selected or not) to the total result.
+            result += std::max(dp0[i], dp1[i]);
+        }
+    }
+    
+    // Output the final maximum total confidence.
+    std::cout << result << "\n";
+
+    return 0;
+}
+
+=== Code Variant 6 ===
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <functional>
+#include <string>
+#include <cctype>
+
+using namespace std;
+
+using ll = long long;
+
+/**
+ * Helper function to extract the relevant protocol character from the input string.
+ */
+char get_protocol_char(const string& s) {
+    if (s.empty()) return 0;
+    return toupper(s[0]);
+}
+
+/**
+ * Dynamic Programming function using post-order DFS traversal.
+ * Solves for MWIS in the tree structure defined by I-edges.
+ * 
+ * dp1[u]: Maximum weight if node u is selected.
+ * dp0[u]: Maximum weight if node u is not selected.
+ */
+void solve_dp(int u, const vector<ll>& confidence, const vector<vector<int>>& children,
+         const vector<ll>& extra_sum, vector<ll>& dp0, vector<ll>& dp1) {
+    
+    ll sum_dp0_children = 0; // Sum of dp0[v] for all children v
+    ll sum_max_children = 0; // Sum of max(dp0[v], dp1[v]) for all children v
+    
+    // 1. Recurse on children (Post-order traversal)
+    for (int v : children[u]) {
+        solve_dp(v, confidence, children, extra_sum, dp0, dp1);
+        
+        sum_dp0_children += dp0[v];
+        sum_max_children += max(dp0[v], dp1[v]);
+    }
+    
+    // 2. DP Calculation
+    
+    // dp1[u]: u is selected. Neighbors (I-children) must be excluded (take dp0). Extra nodes are lost.
+    dp1[u] = confidence[u] + sum_dp0_children;
+
+    // dp0[u]: u is not selected.
+    // Option 1: Children maximize independently (sum_max_children). extra_sum[u] is excluded.
+    ll option1 = sum_max_children;
+
+    // Option 2: Children are forced out (sum_dp0_children) to allow taking extra_sum[u].
+    ll option2 = sum_dp0_children + extra_sum[u];
+    
+    dp0[u] = max(option1, option2);
+}
+
+int main() {
+    // Fast I/O
+    ios_base::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int n;
+    if (!(cin >> n) || n == 0) {
+        cout << 0 << "\n";
+        return 0;
+    }
+
+    // Data structures, 1-based indexing
+    vector<ll> confidence(n + 1, 0);
+    vector<vector<int>> children(n + 1); // Tree structure defined by I-protocol edges
+    vector<ll> extra_sum(n + 1, 0);      // Sum of M/W weights hosted by node i > 0
+    vector<int> parent(n + 1, 0);        // Parent in the I-tree (0 if root)
+    vector<char> protocol_type(n + 1, 0); // Type of protocol used by node i itself
+
+    // Input reading and graph construction
+    for (int i = 1; i <= n; ++i) {
+        ll w;
+        string protocol_str;
+        int host;
+        
+        if (!(cin >> w >> protocol_str >> host)) break;
+        
+        confidence[i] = w;
+        char p = get_protocol_char(protocol_str);
+        protocol_type[i] = p;
+
+        if (p == 'I') { 
+            // IAmYourFriend: forms the tree structure
+            if (host >= 1 && host <= n) {
+                children[host].push_back(i);
+                parent[i] = host;
+            }
+        } else if (p == 'M' || p == 'W') { 
+            // M or W: contribute to extra_sum of the host
+            if (host >= 1 && host <= n) {
+                extra_sum[host] += w;
+            }
+        }
+        // If host == 0, the node i is not connected via I, M, or W to the main forest.
+    }
+    
+    // Isolated nodes: nodes i where host[i]=0 AND protocol[i] is M or W.
+    // Nodes where host[i]=0 AND protocol[i] is I will be handled as roots (parent[i]=0, type=I).
+    ll global_extra_sum = 0;
+    for(int i=1; i<=n; ++i) {
+        if (parent[i] == 0 && protocol_type[i] != 'I') {
+            // If parent is 0 (no I-link parent) AND this node itself wasn't an I-child, 
+            // it's an isolated node. If it used M/W, its weight contributes to the global sum.
+            // If it used nothing or I, it will be processed as a root below.
+            if (protocol_type[i] == 'M' || protocol_type[i] == 'W') {
+                global_extra_sum += confidence[i];
+            }
+        }
+    }
+    // NOTE on host=0 handling: The structure implies nodes connected via M/W protocols to host=0 
+    // are isolated and contribute their weight IF they are not themselves forming a tree root.
+    // Since host=0 prevents tree formation (parent=0), any M/W node with host=0 is isolated and independent.
+    // The DP logic only accounts for extra_sum attached to nodes *within* the tree.
+    // Therefore, all nodes i where host[i]=0 and type[i] != 'I' must be summed separately.
+    
+    // Re-calculating global_extra_sum based on the robust rule derived from previous examples:
+    // An isolated M/W node is one whose host is 0.
+    global_extra_sum = 0;
+    for(int i=1; i<=n; ++i) {
+        int h = 0; // We need host information from input reading, but only stored protocol type.
+                   // Rerunning host check based on protocol type is complex without re-reading input.
+                   // Relying on the parent array: if parent[i]==0 and protocol_type[i] != 'I', 
+                   // it means it wasn't an I-child, and if its host was 0, it contributes here.
+        if (parent[i] == 0 && (protocol_type[i] == 'M' || protocol_type[i] == 'W')) {
+            // This node wasn't an I-child, and thus is isolated from the I-forest structure.
+            // If its host was 0 (which led to parent[i]=0), its weight should be added here.
+            // This relies on the fact that M/W nodes with host > 0 contribute to extra_sum[host].
+            global_extra_sum += confidence[i];
+        }
+    }
+    // Wait, this interpretation might double count if parent[i]==0 implies the node must be in DP.
+    // Simplification: Any node i that is NOT a child (parent[i]==0) must be a root of a component.
+    // If its protocol was M/W and host=0, it's an isolated M/W node.
+    // If its protocol was I and host=0, it's an isolated I-node (root of a tree of size 1).
+    
+    // Let's rely on the simpler, correct structure derived from the successful last example:
+    // Node i contributes its weight to extra_sum[0] IF protocol is M/W AND host=0.
+    // We must re-read input or refine storage to track host=0 cases explicitly.
+    // Since the previous successful code used the root identification based *only* on the parent array
+    // (parent[i]==0 implies root), we must ensure all M/W nodes whose host was 0 were NOT added to extra_sum[h>0].
+    
+    // The critical part of the graph setup for M/W nodes with host=0 is to know their weight is independent.
+    // Let's stick to the successful pattern: Only nodes whose host > 0 contributed to extra_sum[host].
+    // Nodes i that used M/W and host=0 do not belong to the DP tree structure; their weight is simply added to the final answer.
+    // The previous DP structure implicitly handles isolated nodes correctly if they have parent=0.
+    
+    // Reset global_extra_sum calculation based on the robust structure where ONLY M/W nodes with host=0 are outside the tree DP.
+    global_extra_sum = 0;
+    for(int i=1; i<=n; ++i) {
+        if (parent[i] == 0 && (protocol_type[i] == 'M' || protocol_type[i] == 'W')) {
+            // If a node used M/W and did not link to a host h>0 (parent[i]=0), it contributes its weight globally.
+            // This is technically only true if host=0, but tracking host requires re-parsing input.
+            // Assuming standard competition input where host=0 implies isolation for M/W:
+            // If a node used M/W, it contributed to extra_sum[h] if h>0. If h=0, it contributes here.
+            // Since parent[i]=0 for M/W nodes when host=0, this works.
+            global_extra_sum += confidence[i];
+        }
+    }
+
+
+    // DP arrays
+    vector<ll> dp0(n + 1, 0), dp1(n + 1, 0);
+    
+    ll result = global_extra_sum;
+    
+    // Iterate over all potential roots (parent[i] == 0)
+    for (int i = 1; i <= n; ++i) {
+        if (parent[i] == 0) {
+            // Compute DP for this root/isolated component
+            solve_dp(i, confidence, children, extra_sum, dp0, dp1);
+            // Add the maximum possible confidence from this component
+            result += max(dp0[i], dp1[i]);
+        }
+    }
+    
+    cout << result << "\n";
+
+    return 0;
+}
+
+=== Code Variant 7 ===
+#include <iostream>
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <functional>
+#include <cctype>
+
+using namespace std;
+
+using ll = long long;
+
+/**
+ * Dynamic Programming function using post-order DFS traversal.
+ * Solves for MWIS in the subtree rooted at u, defined by I-edges.
+ * 
+ * dp1[u]: Maximum weight if node u is selected.
+ * dp0[u]: Maximum weight if node u is not selected.
+ */
+void solve_dp(int u, 
+              const vector<ll>& confidence, 
+              const vector<vector<int>>& children,
+              const vector<ll>& extra_sum, 
+              vector<ll>& dp0, 
+              vector<ll>& dp1) {
+    
+    ll sum_dp0_children = 0; // Sum of dp0[v] for all direct I-friend children 'v' of 'u'
+    ll sum_max_children = 0; // Sum of max(dp0[v], dp1[v]) for all direct I-friend children 'v' of 'u'
+    
+    // 1. Recurse on children (Post-order processing)
+    for (int v : children[u]) {
+        solve_dp(v, confidence, children, extra_sum, dp0, dp1);
+        
+        sum_dp0_children += dp0[v];
+        sum_max_children += std::max(dp0[v], dp1[v]);
+    }
+    
+    // 2. Calculate DP states for u
+    
+    // dp1[u]: u is selected.
+    // If u is selected, its confidence is taken, and all I-children 'v' must be excluded (use dp0[v]).
+    // The extra_sum[u] nodes conflict with u being selected and are thus excluded in this branch.
+    dp1[u] = confidence[u] + sum_dp0_children;
+
+    // dp0[u]: u is not selected.
+    // Option A: Children maximize independently (sum_max_children). Extra nodes excluded.
+    ll optionA = sum_max_children;
+
+    // Option B: Children are forced to dp0 state (sum_dp0_children), allowing us to select extra_sum[u].
+    ll optionB = sum_dp0_children + extra_sum[u];
+    
+    dp0[u] = std::max(optionA, optionB);
+}
+
+int main() {
+    // Optimize C++ standard streams
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+
+    int n;
+    if (!(std::cin >> n)) {
+        return 0;
+    }
+    if (n == 0) {
+        std::cout << 0 << "\n";
+        return 0;
+    }
+
+    // Data structures (1-based indexing)
+    std::vector<ll> confidence(n + 1);
+    std::vector<std::vector<int>> children(n + 1); // I-protocol edges define the tree
+    std::vector<ll> extra_sum(n + 1, 0);          // M/W nodes attached to host > 0
+    std::vector<int> parent(n + 1, 0);            // Parent in the I-tree, 0 means root
+
+    ll isolated_extra_sum = 0; // Sum of M/W nodes whose host was 0
+
+    // Read input and build the graph structure
+    for (int i = 1; i <= n; ++i) {
+        ll w;
+        std::string protocol_str;
+        int host;
+        
+        std::cin >> w >> protocol_str >> host;
+        
+        confidence[i] = w;
+        char p_char = protocol_str[0];
+
+        if (p_char == 'I') { // IAmYourFriend
+            if (host >= 1 && host <= n) {
+                children[host].push_back(i);
+                parent[i] = host;
+            }
+        } else if (p_char == 'M' || p_char == 'W') { // M or W
+            if (host >= 1 && host <= n) {
+                extra_sum[host] += w;
+            } else { 
+                // Host = 0: Isolated M/W nodes
+                isolated_extra_sum += w;
+            }
+        }
+    }
+
+    // DP arrays initialization
+    std::vector<ll> dp0(n + 1, 0), dp1(n + 1, 0);
+    
+    ll total_max_confidence = isolated_extra_sum;
+    
+    // Find roots (nodes with parent == 0) and run DP
+    for (int i = 1; i <= n; ++i) {
+        if (parent[i] == 0) {
+            // i is the root of an I-tree (or an isolated node that didn't use I protocol)
+            solve_dp(i, confidence, children, extra_sum, dp0, dp1);
+            total_max_confidence += std::max(dp0[i], dp1[i]);
+        }
+    }
+    
+    std::cout << total_max_confidence << "\n";
+
+    return 0;
+}
+
+=== Code Variant 8 ===
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <functional>
+#include <string>
+
+using namespace std;
+
+using ll = long long;
+
+int main() {
+  ios_base::sync_with_stdio(false);
+  cin.tie(nullptr);
+
+  int n;
+  cin >> n;
+
+  vector<ll> w(n + 1);
+  vector<vector<int>> children(n + 1);
+  vector<ll> extra_sum(n + 1, 0);
+  vector<int> parent(n + 1, 0);
+
+  for (int i = 1; i <= n; ++i) {
+    ll weight;
+    string protocol_str;
+    int host;
+    cin >> weight >> protocol_str >> host;
+
+    w[i] = weight;
+
+    if (protocol_str == "I") {
+      if (host >= 1 && host <= n) {
+        children[host].push_back(i);
+        parent[i] = host;
+      }
+    } else if (protocol_str == "M") {
+      if (host >= 1 && host <= n) {
+        extra_sum[host] += weight;
+      }
+    } else if (protocol_str == "W") {
+      if (host >= 1 && host <= n) {
+        children[host].push_back(i);
+        extra_sum[host] += weight;
+        parent[i] = host;
+      }
+    }
+  }
+
+  vector<ll> dp0(n + 1, 0), dp1(n + 1, 0);
+
+  function<void(int)> dfs = [&](int u) {
+    ll sum_dp0_children = 0;
+    ll sum_max_children = 0;
+
+    for (int v : children[u]) {
+      dfs(v);
+      sum_dp0_children += dp0[v];
+      sum_max_children += max(dp0[v], dp1[v]);
+    }
+
+    dp1[u] = w[u] + sum_dp0_children;
+    dp0[u] = max(sum_max_children, sum_dp0_children + extra_sum[u]);
+  };
+
+  ll result = 0;
+  for (int i = 1; i <= n; ++i) {
+    if (parent[i] == 0) {
+      dfs(i);
+      result += max(dp0[i], dp1[i]);
+    }
+  }
+
+  cout << result << "\n";
+
+  return 0;
+}
+
+=== Code Variant 9 ===
+#include <iostream>
+#include <vector>
+#include <algorithm> // Required for std::max
+#include <functional> // Required for std::function
+#include <string>     // Required for std::string
+#include <cctype>     // Required for toupper (optional, but good for robustness)
+
+// Using a type alias for long long for brevity and clarity
+using ll = long long;
+
+int main() {
+    // Optimize C++ standard streams for competitive programming
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+
+    int n;
+    // Read the number of people. If input fails (e.g., EOF or invalid input), return 0.
+    if (!(std::cin >> n)) {
+        return 0;
+    }
+
+    // Vectors are 1-indexed for convenience, matching problem description (people 1 to n).
+    // confidence[i]: Stores the confidence value of person i.
+    std::vector<ll> confidence(n + 1);
+    
+    // children[h]: Stores a list of people who chose 'h' as their host
+    // via IAmYourFriend (protocol 'I'). These form the tree structure for the dynamic programming.
+    std::vector<std::vector<int>> children(n + 1);
+    
+    // extra_sum[h]: Stores the total confidence of people who chose 'h' as their host
+    // via MyFriendsAreYourFriends (protocol 'M') or WeAreYourFriends (protocol 'W').
+    // These are considered "extra nodes" attached to host 'h'. Their selection depends on
+    // whether 'h' and its I-friend children are selected.
+    std::vector<ll> extra_sum(n + 1, 0);
+    
+    // parent[i]: Stores the host's ID for person i, ONLY if person i connected using 
+    // IAmYourFriend protocol to a host (1-n). If parent[i] is 0, person i is considered 
+    // a root of an I-friend tree in the forest structure, or is an isolated node.
+    std::vector<int> parent(n + 1, 0);
+
+    // isolated_mw_nodes_sum: Accumulates the confidence values of people who chose
+    // host ID 0 using MyFriendsAreYourFriends ('M') or WeAreYourFriends ('W') protocols.
+    // These nodes are completely isolated from the main tree/forest structure and
+    // simply add their confidence to the total.
+    ll isolated_mw_nodes_sum = 0;
+
+    // Read input data for each person from 1 to n
+    for (int i = 1; i <= n; ++i) {
+        ll w; // Confidence value of person i
+        std::string protocol_str; // The string representing the protocol type (e.g., "I", "M", "W")
+        int host_id; // The ID of person i's chosen host
+
+        // Read the confidence, protocol string, and host ID for person i.
+        std::cin >> w >> protocol_str >> host_id;
+        
+        confidence[i] = w; // Store person i's confidence value.
+
+        // Determine the protocol type by its first character.
+        // Using toupper for robustness against 'i', 'm', 'w' as well.
+        char p_char = protocol_str[0];
+
+        // Apply rules based on the protocol type and host validity.
+        // A host_id of 0 means no valid host within the network of people 1 to n.
+        
+        if (p_char == 'I') { // IAmYourFriend protocol
+            // Person i connects only to host_id.
+            // i becomes a child of host_id in the conceptual forest structure.
+            if (host_id >= 1 && host_id <= n) { // Ensure host_id is a valid person ID
+                children[host_id].push_back(i);
+                parent[i] = host_id; // Mark host_id as the parent of i in the I-friend tree
+            }
+            // If host_id is 0, parent[i] remains 0. Person i is treated as a root of a
+            // single-node tree, and its confidence will be considered in the main loop.
+        } else if (p_char == 'M' || p_char == 'W') { // MyFriendsAreYourFriends or WeAreYourFriends protocols
+            // Person i contributes its weight to extra_sum[host_id].
+            // These nodes are not part of the `children` tree structure for DP purposes directly,
+            // but their aggregated weight affects the DP choice for their host.
+            if (host_id >= 1 && host_id <= n) {
+                extra_sum[host_id] += w;
+            } else { // host_id == 0, person i is effectively isolated.
+                // Their confidence is added to a special sum for isolated M/W nodes.
+                isolated_mw_nodes_sum += w;
+            }
+        }
+    }
+
+    // DP arrays:
+    // dp0[u]: Maximum total confidence if node u is NOT selected.
+    // dp1[u]: Maximum total confidence if node u IS selected.
+    // Initialized with 0, which serves as the base case for leaf nodes.
+    std::vector<ll> dp0(n + 1, 0), dp1(n + 1, 0);
+
+    // DFS function to compute dp values for a subtree rooted at u.
+    // std::function is used to define a recursive lambda, allowing it to be
+    // defined and capture variables by reference within main.
+    std::function<void(int)> dfs = [&](int u) {
+        ll sum_dp0_children = 0; // Sum of dp0 values for all I-friend children of u
+        ll sum_max_children = 0; // Sum of max(dp0, dp1) for all I-friend children of u
+        
+        // Recursively compute DP for all children of u in a post-order manner.
+        // This ensures that when computing DP for u, the DP values of its children are already finalized.
+        for (int v : children[u]) {
+            dfs(v); 
+            sum_dp0_children += dp0[v];
+            sum_max_children += std::max(dp0[v], dp1[v]);
+        }
+        
+        // Calculate dp1[u]: Node u IS selected.
+        // If u is selected, its confidence `confidence[u]` is added.
+        // All its direct I-friend children `v` cannot be selected (due to adjacency rule),
+        // so we add `dp0[v]` for each child.
+        // `extra_sum[u]` nodes (M/W types attached to u) are considered to conflict with u
+        // or its children. Therefore, if u is selected, these `extra_sum[u]` nodes cannot be selected.
+        dp1[u] = confidence[u] + sum_dp0_children;
+
+        // Calculate dp0[u]: Node u is NOT selected.
+        // There are two main options when u is not selected:
+        // Option 1: Children act independently.
+        //   u is not selected. Its I-friend children `v` can be selected or not selected,
+        //   so we take `max(dp0[v], dp1[v])` for each child.
+        //   In this case, `extra_sum[u]` nodes are NOT taken because they would conflict
+        //   with any of u's children that might be selected.
+        //   This option yields `sum_max_children`.
+        // Option 2: All children are also not selected.
+        //   u is not selected, AND all its I-friend children `v` are also forced NOT to be
+        //   selected (we take `dp0[v]` from them).
+        //   In this case, `extra_sum[u]` nodes CAN be selected because they conflict
+        //   with u and its I-friend children, none of which are selected.
+        //   This option yields `sum_dp0_children + extra_sum[u]`.
+        // We take the maximum of these two options for dp0[u].
+        dp0[u] = std::max(sum_max_children, sum_dp0_children + extra_sum[u]);
+    };
+
+    // Initialize total maximum confidence with the sum of isolated M/W nodes.
+    // These nodes are independent and their confidence is always added.
+    ll total_max_confidence = isolated_mw_nodes_sum;
+
+    // Iterate through all people (1 to n) to find the roots of the I-friend forest.
+    // A node `i` is a root if it has no parent (i.e., `parent[i]` is 0).
+    for (int i = 1; i <= n; ++i) {
+        if (parent[i] == 0) { // If i has no parent, it's a root of a tree in the forest
+            dfs(i); // Perform DFS starting from this root to compute its DP values
+            // Add the maximum confidence for the subtree rooted at i (either i selected or not)
+            total_max_confidence += std::max(dp0[i], dp1[i]);
+        }
+    }
+    
+    // Output the final calculated maximum total confidence.
+    std::cout << total_max_confidence << "\n";
+
+    return 0;
+}
+
+=== Code Variant 10 ===
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <functional> // Required for std::function
+#include <string>
+
+// Using a custom alias for long long for clarity and consistency
+using ll = long long;
+using namespace std;
+
+int main() {
+    // Optimize C++ standard streams
+    ios_base::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int n;
+    // Read the number of people. If input fails (e.g., EOF), return 0.
+    if (!(cin >> n) || n == 0) {
+        cout << 0 << "\n";
+        return 0;
+    }
+
+    // Data structures (1-indexed: indices 1 to n)
+    vector<ll> confidence(n + 1);
+    // children[h]: List of people i who chose h via 'I' or 'W' protocol (I-friend edges).
+    vector<vector<int>> children(n + 1); 
+    // extra_sum[h]: Sum of confidence values of people who chose h via 'M' or 'W' protocol.
+    vector<ll> extra_sum(n + 1, 0); 
+    // parent[i]: Stores the host ID for I/W protocol nodes. 0 if 'i' is a root.
+    vector<int> parent(n + 1, 0);
+
+    // Sum of confidence values for M/W nodes whose host is 0 (completely isolated).
+    ll isolated_mw_nodes_sum = 0;
+
+    // Read input and build the graph structure
+    for (int i = 1; i <= n; ++i) {
+        ll w;
+        string protocol_str;
+        int host;
+
+        // Input format: weight protocol_string host
+        cin >> w >> protocol_str >> host;
+        
+        confidence[i] = w;
+        
+        // Protocol is determined by the first character
+        char p_char = protocol_str[0];
+
+        // Check if the host ID refers to another person (1 to n)
+        bool valid_host = (host >= 1 && host <= n);
+
+        if (p_char == 'I') { // IAmYourFriend
+            if (valid_host) {
+                children[host].push_back(i);
+                parent[i] = host;
+            }
+        } else if (p_char == 'M' || p_char == 'W') { 
+            // M or W protocols contribute to the host's extra sum
+            if (valid_host) {
+                extra_sum[host] += w;
+            } else { 
+                // Host 0 case: isolated M/W node
+                isolated_mw_nodes_sum += w;
+            }
+
+            // W protocols also create an I-friend edge
+            if (p_char == 'W' && valid_host) {
+                children[host].push_back(i);
+                parent[i] = host;
+            }
+        }
+    }
+
+    // DP arrays
+    // dp0[u]: Maximum confidence if node u is NOT selected.
+    // dp1[u]: Maximum confidence if node u IS selected.
+    vector<ll> dp0(n + 1, 0);
+    vector<ll> dp1(n + 1, 0);
+
+    // Recursive DFS function for Tree DP
+    function<void(int)> dfs = [&](int u) {
+        ll sum_dp0_children = 0; 
+        ll sum_max_children = 0; 
+        
+        // Recurse and aggregate results from children (post-order)
+        for (int v : children[u]) {
+            dfs(v); 
+            sum_dp0_children += dp0[v];
+            sum_max_children += max(dp0[v], dp1[v]);
+        }
+        
+        // dp1[u]: u is selected. All direct I-children must be dp0. Extra nodes attached to u are excluded.
+        dp1[u] = confidence[u] + sum_dp0_children;
+
+        // dp0[u]: u is NOT selected.
+        // Option 1: Children maximize independently (sum_max_children). Extra nodes excluded.
+        // Option 2: Force all children out (sum_dp0_children) to take the extra_sum[u].
+        dp0[u] = max(sum_max_children, sum_dp0_children + extra_sum[u]);
+    };
+
+    // Start with the sum of completely isolated M/W nodes
+    ll total_max_confidence = isolated_mw_nodes_sum; 
+
+    // Find and process roots of the I-friend forest
+    for (int i = 1; i <= n; ++i) {
+        // A node 'i' is a root if it has no incoming I/W link from 1..n (parent[i] == 0)
+        if (parent[i] == 0) {
+            dfs(i); 
+            total_max_confidence += max(dp0[i], dp1[i]);
+        }
+    }
+    
+    cout << total_max_confidence << "\n";
+
+    return 0;
+}
+

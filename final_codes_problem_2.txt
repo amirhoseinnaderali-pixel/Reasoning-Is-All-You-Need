@@ -1,0 +1,1227 @@
+=== Code Variant 1 ===
+#include <bits/stdc++.h>
+using namespace std;
+
+int R, C, H, W;
+vector<vector<int>> grid;
+
+// Return true if there exists an H×W subgrid whose median is ≤ x.
+bool feasible(int x) {
+    const int need = (H * W + 1) / 2;           // required number of cells ≤ x
+    vector<vector<int>> pref(R + 1, vector<int>(C + 1, 0));
+
+    // build 2‑D prefix sum of the binary matrix (a[i][j] ≤ x)
+    for (int i = 1; i <= R; ++i) {
+        int row_sum = 0;
+        for (int j = 1; j <= C; ++j) {
+            row_sum += (grid[i - 1][j - 1] <= x);
+            pref[i][j] = pref[i - 1][j] + row_sum;
+        }
+    }
+
+    // test every H×W subgrid
+    for (int i = H; i <= R; ++i) {
+        for (int j = W; j <= C; ++j) {
+            int cnt = pref[i][j] - pref[i - H][j] - pref[i][j - W] + pref[i - H][j - W];
+            if (cnt >= need) return true;
+        }
+    }
+    return false;
+}
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    if (!(cin >> R >> C >> H >> W)) return 0;
+    grid.assign(R, vector<int>(C));
+    for (int i = 0; i < R; ++i)
+        for (int j = 0; j < C; ++j)
+            cin >> grid[i][j];
+
+    int lo = 1, hi = R * C, ans = hi;
+    while (lo <= hi) {
+        int mid = lo + (hi - lo) / 2;
+        if (feasible(mid)) {
+            ans = mid;
+            hi = mid - 1;
+        } else {
+            lo = mid + 1;
+        }
+    }
+    cout << ans << '\n';
+    return 0;
+}
+
+=== Code Variant 2 ===
+#include <iostream>
+#include <vector>
+#include <algorithm> // Not strictly needed for this specific solution, but often useful
+
+// Global variables for grid dimensions and the grid data.
+// This approach is common in competitive programming to simplify function signatures
+// by avoiding repeated passing of these parameters.
+int R_global, C_global, H_global, W_global;
+std::vector<std::vector<int>> grid_global;
+
+/**
+ * @brief Checks if it's possible to find an H_global x W_global subgrid where the median
+ *        quality rank is less than or equal to `x`.
+ *
+ * For `x` to be a median (or better) in an H_global x W_global subgrid, at least
+ * `(H_global * W_global + 1) / 2` elements within that subgrid must have a quality rank
+ * less than or equal to `x`. This is because H_global * W_global is guaranteed to be odd
+ * (as H and W are odd), so the median is the element at position `(H_global * W_global + 1) / 2`
+ * when all elements in the subgrid are sorted.
+ *
+ * This function works by:
+ * 1. Conceptually transforming the original `grid_global` into a temporary binary matrix.
+ *    In this binary matrix, a cell `(i, j)` has value 1 if `grid_global[i][j] <= x`, and 0 otherwise.
+ * 2. Computing a 2D prefix sum (also known as an integral image) on this binary matrix.
+ *    This allows for constant-time retrieval of the sum of 1s (i.e., the count of elements <= x)
+ *    within any rectangular subregion.
+ * 3. Iterating through all possible H_global x W_global subgrids. For each subgrid,
+ *    it uses the precomputed 2D prefix sums to quickly determine if it contains
+ *    at least `(H_global * W_global + 1) / 2` elements that are less than or equal to `x`.
+ *
+ * @param x The candidate median value to test.
+ * @return `true` if such an H_global x W_global subgrid exists (meaning `x` or a smaller value could be the median),
+ *         `false` otherwise.
+ */
+bool is_feasible(int x) {
+    // Calculate the minimum number of elements that must be <= x within an HxW subgrid.
+    // This is the count required for x to be the median or a better rank.
+    const int required_count = (H_global * W_global + 1) / 2;
+
+    // Create a 2D prefix sum array. It uses 1-based indexing for simpler calculations
+    // of subregion sums, hence dimensions are (R+1) x (C+1).
+    std::vector<std::vector<int>> prefix_sums(R_global + 1, std::vector<int>(C_global + 1, 0));
+
+    // Build the 2D prefix sum array. `prefix_sums[i][j]` will store the count of elements
+    // `v` such that `v <= x` within the rectangle from `grid_global[0][0]` to `grid_global[i-1][j-1]`.
+    for (int i = 1; i <= R_global; ++i) {
+        for (int j = 1; j <= C_global; ++j) {
+            // `val` is 1 if the current element meets the condition (is <= x), 0 otherwise.
+            int val = (grid_global[i - 1][j - 1] <= x) ? 1 : 0;
+
+            // Standard 2D prefix sum formula:
+            // S(i,j) = val(i,j) + S(i-1,j) + S(i,j-1) - S(i-1,j-1)
+            prefix_sums[i][j] = val + prefix_sums[i - 1][j] + prefix_sums[i][j - 1] - prefix_sums[i - 1][j - 1];
+        }
+    }
+
+    // Iterate through all possible H_global x W_global subgrids.
+    // `i` and `j` represent the 1-based row and column indices of the
+    // bottom-right corner of the current H_global x W_global subgrid in the `prefix_sums` array.
+    // A subgrid ending at (i, j) has its top-left corner at (i - H_global + 1, j - W_global + 1)
+    // in 1-based indexing.
+    for (int i = H_global; i <= R_global; ++i) {
+        for (int j = W_global; j <= C_global; ++j) {
+            // Calculate the count of elements <= `x` within the current H_global x W_global subgrid.
+            // This is done efficiently using the 2D prefix sum inclusion-exclusion principle:
+            // Count = Sum(rect_to_bottom_right) - Sum(rect_to_top_excluded) - Sum(rect_to_left_excluded) + Sum(rect_to_top_left_double_excluded)
+            int ones_count = prefix_sums[i][j]
+                           - prefix_sums[i - H_global][j]
+                           - prefix_sums[i][j - W_global]
+                           + prefix_sums[i - H_global][j - W_global];
+
+            // If this subgrid contains enough elements <= `x`, then `x` is a feasible median.
+            // We've found a subgrid that satisfies the condition, so we can stop searching.
+            if (ones_count >= required_count) {
+                return true;
+            }
+        }
+    }
+
+    // If no H_global x W_global subgrid was found that satisfies the condition, `x` is not feasible.
+    return false;
+}
+
+int main() {
+    // Optimize C++ standard streams for faster input/output operations.
+    // This is a common and crucial optimization for competitive programming problems
+    // with large inputs or tight time limits.
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(NULL);
+
+    // Read the grid dimensions (R rows, C columns) and subgrid dimensions (H height, W width).
+    // It's good practice to check if input operations succeed, though competitive programming
+    // problems usually guarantee valid initial input.
+    if (!(std::cin >> R_global >> C_global >> H_global >> W_global)) {
+        return 1; // Indicate an error if input fails
+    }
+
+    // Resize the global `grid_global` vector to accommodate the input dimensions.
+    grid_global.resize(R_global, std::vector<int>(C_global));
+
+    // Read the quality ranks for each cell in the R_global x C_global grid.
+    // Quality ranks are distinct integers from 1 to R_global * C_global.
+    for (int i = 0; i < R_global; ++i) {
+        for (int j = 0; j < C_global; ++j) {
+            std::cin >> grid_global[i][j];
+        }
+    }
+
+    // Perform a binary search on the possible values of the median.
+    // The range of possible quality ranks (and thus median values) is from 1 to R*C.
+    int low = 1;
+    int high = R_global * C_global;
+    int answer = high; // Initialize `answer` with the largest possible value, as we seek the minimum.
+
+    // The binary search loop continues as long as `low` is less than or equal to `high`.
+    while (low <= high) {
+        // Calculate the middle value. The `low + (high - low) / 2` form is preferred
+        // over `(low + high) / 2` to prevent potential integer overflow if `low` and `high` are very large.
+        int mid = low + (high - low) / 2;
+
+        // Check if `mid` is a feasible median value.
+        if (is_feasible(mid)) {
+            // If `mid` is feasible, it means we found a subgrid whose median is `mid` or better.
+            // We store `mid` as a potential `answer` and try to find an even smaller (better) median
+            // by searching in the lower half of the current range.
+            answer = mid;
+            high = mid - 1;
+        } else {
+            // If `mid` is not feasible, it means no subgrid has a median of `mid` or better.
+            // Thus, `mid` is too small, and we need to search for a larger median in the upper half.
+            low = mid + 1;
+        }
+    }
+
+    // Output the `answer`, which will be the smallest possible median quality rank found.
+    std::cout << answer << '\n';
+
+    return 0; // Indicate successful execution.
+}
+
+=== Code Variant 3 ===
+#include <bits/stdc++.h>
+using namespace std;
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int R, C, H, W;
+    if (!(cin >> R >> C >> H >> W)) return 0;
+
+    vector<vector<int>> a(R, vector<int>(C));
+    for (int i = 0; i < R; ++i)
+        for (int j = 0; j < C; ++j)
+            cin >> a[i][j];
+
+    // 2‑D prefix sums (1‑based indexing) – reused in every feasibility test
+    vector<vector<int>> pref(R + 1, vector<int>(C + 1, 0));
+
+    const int need = (H * W + 1) / 2;   // at least this many cells ≤ median
+
+    auto feasible = [&](int x) -> bool {
+        // Build prefix sums for binary matrix: 1 if a[i][j] ≤ x, else 0
+        for (int i = 1; i <= R; ++i) {
+            int row_sum = 0;
+            for (int j = 1; j <= C; ++j) {
+                row_sum += (a[i - 1][j - 1] <= x);
+                pref[i][j] = pref[i - 1][j] + row_sum;
+            }
+        }
+
+        // Check all H×W subrectangles
+        for (int i = H; i <= R; ++i) {
+            for (int j = W; j <= C; ++j) {
+                int cnt = pref[i][j] - pref[i - H][j] - pref[i][j - W] + pref[i - H][j - W];
+                if (cnt >= need) return true;
+            }
+        }
+        return false;
+    };
+
+    // Binary search the smallest possible median (ranks are 1 … R*C)
+    int lo = 1, hi = R * C, ans = hi;
+    while (lo <= hi) {
+        int mid = lo + (hi - lo) / 2;
+        if (feasible(mid)) {
+            ans = mid;
+            hi = mid - 1;
+        } else {
+            lo = mid + 1;
+        }
+    }
+
+    cout << ans << '\n';
+    return 0;
+}
+
+=== Code Variant 4 ===
+#include <iostream>
+#include <vector>
+
+int R, C, H, W;
+std::vector<std::vector<int>> grid;
+
+/**
+ * Checks if there exists an H×W subgrid where the median is ≤ x.
+ * 
+ * Since H and W are odd, for the median to be ≤ x in an H×W subgrid,
+ * at least (H*W + 1)/2 elements must be ≤ x.
+ * 
+ * @param x The candidate median value
+ * @return true if such a subgrid exists, false otherwise
+ */
+bool is_feasible(int x) {
+    // Create binary matrix: 1 if grid[i][j] ≤ x, 0 otherwise
+    std::vector<std::vector<int>> prefix(R + 1, std::vector<int>(C + 1, 0));
+    
+    // Build 2D prefix sum array
+    for (int i = 1; i <= R; i++) {
+        for (int j = 1; j <= C; j++) {
+            int val = (grid[i - 1][j - 1] <= x) ? 1 : 0;
+            prefix[i][j] = val + prefix[i - 1][j] + prefix[i][j - 1] - prefix[i - 1][j - 1];
+        }
+    }
+    
+    // Check all H×W subgrids
+    int required = (H * W + 1) / 2;
+    for (int i = H; i <= R; i++) {
+        for (int j = W; j <= C; j++) {
+            int count = prefix[i][j] - prefix[i - H][j] - prefix[i][j - W] + prefix[i - H][j - W];
+            if (count >= required) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+int main() {
+    // Fast I/O
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+    
+    // Read dimensions
+    std::cin >> R >> C >> H >> W;
+    
+    // Read grid (quality ranks 1 to R*C)
+    grid.resize(R, std::vector<int>(C));
+    for (int i = 0; i < R; i++) {
+        for (int j = 0; j < C; j++) {
+            std::cin >> grid[i][j];
+        }
+    }
+    
+    // Binary search for minimal median
+    int low = 1;
+    int high = R * C;
+    int ans = high;
+    
+    while (low <= high) {
+        int mid = low + (high - low) / 2;
+        if (is_feasible(mid)) {
+            ans = mid;
+            high = mid - 1;
+        } else {
+            low = mid + 1;
+        }
+    }
+    
+    std::cout << ans << '\n';
+    return 0;
+}
+
+=== Code Variant 5 ===
+#include <iostream>
+#include <vector>
+
+using namespace std;
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int R, C, H, W;
+    if (!(cin >> R >> C >> H >> W)) return 0;
+
+    vector<vector<int>> grid(R, vector<int>(C));
+    for (int i = 0; i < R; ++i)
+        for (int j = 0; j < C; ++j)
+            cin >> grid[i][j];
+
+    const int required = (H * W + 1) / 2;  // Minimum number of elements ≤ median needed
+    vector<vector<int>> pref(R + 1, vector<int>(C + 1, 0));
+
+    auto feasible = [&](int x) -> bool {
+        // Build binary matrix where cell = 1 if grid[i][j] ≤ x, else 0
+        for (int i = 1; i <= R; ++i) {
+            for (int j = 1; j <= C; ++j) {
+                int val = (grid[i - 1][j - 1] <= x) ? 1 : 0;
+                pref[i][j] = val + pref[i - 1][j] + pref[i][j - 1] - pref[i - 1][j - 1];
+            }
+        }
+
+        // Check all H×W subgrids
+        for (int i = H; i <= R; ++i) {
+            for (int j = W; j <= C; ++j) {
+                int cnt = pref[i][j] - pref[i - H][j] - pref[i][j - W] + pref[i - H][j - W];
+                if (cnt >= required) return true;
+            }
+        }
+        return false;
+    };
+
+    // Binary search for the minimal achievable median
+    int lo = 1, hi = R * C, ans = hi;
+    while (lo <= hi) {
+        int mid = lo + (hi - lo) / 2;
+        if (feasible(mid)) {
+            ans = mid;
+            hi = mid - 1;
+        } else {
+            lo = mid + 1;
+        }
+    }
+
+    cout << ans << '\n';
+    return 0;
+}
+
+=== Code Variant 6 ===
+#include <iostream>
+#include <vector>
+
+using namespace std;
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int R, C, H, W;
+    cin >> R >> C >> H >> W;
+
+    vector<vector<int>> grid(R, vector<int>(C));
+    for (int i = 0; i < R; ++i) {
+        for (int j = 0; j < C; ++j) {
+            cin >> grid[i][j];
+        }
+    }
+
+    auto is_feasible = [&](int x) -> bool {
+        vector<vector<int>> prefix_sum(R + 1, vector<int>(C + 1, 0));
+        for (int i = 1; i <= R; ++i) {
+            for (int j = 1; j <= C; ++j) {
+                prefix_sum[i][j] = prefix_sum[i - 1][j] + prefix_sum[i][j - 1] - prefix_sum[i - 1][j - 1] + (grid[i - 1][j - 1] <= x);
+            }
+        }
+
+        int required_count = (H * W + 1) / 2;
+        for (int i = H; i <= R; ++i) {
+            for (int j = W; j <= C; ++j) {
+                int count = prefix_sum[i][j] - prefix_sum[i - H][j] - prefix_sum[i][j - W] + prefix_sum[i - H][j - W];
+                if (count >= required_count) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+
+    int low = 1, high = R * C, ans = high;
+    while (low <= high) {
+        int mid = low + (high - low) / 2;
+        if (is_feasible(mid)) {
+            ans = mid;
+            high = mid - 1;
+        } else {
+            low = mid + 1;
+        }
+    }
+
+    cout << ans << endl;
+    return 0;
+}
+
+=== Code Variant 7 ===
+#include <iostream>
+#include <vector>
+#include <algorithm>
+
+using namespace std;
+
+// Global variables to hold input dimensions and the grid data
+int R, C, H, W;
+vector<vector<int>> grid;
+
+/**
+ * Checks if there exists an H×W subgrid where the median is less than or equal to x.
+ * 
+ * For the median to be <= x in an H×W subgrid of size N=H*W (where N is odd), 
+ * at least K = (N + 1)/2 elements must satisfy value <= x.
+ * 
+ * @param x The candidate median value (quality rank).
+ * @return true if such a subgrid exists, false otherwise.
+ */
+bool is_feasible(int x) {
+    // Required number of elements <= x for x to be the median (or better)
+    const int required_count = (H * W + 1) / 2;
+    
+    // Prefix sum array for the binary grid (1 if grid[i][j] <= x, else 0)
+    // Using 1-based indexing for standard prefix sum calculations.
+    vector<vector<int>> prefix(R + 1, vector<int>(C + 1, 0));
+    
+    // 1. Build the 2D prefix sum array
+    for (int i = 1; i <= R; ++i) {
+        for (int j = 1; j <= C; ++j) {
+            // Binary value for the cell grid[i-1][j-1]
+            int val = (grid[i - 1][j - 1] <= x) ? 1 : 0;
+            
+            // Standard 2D prefix sum calculation: S(i,j) = val(i,j) + S(i-1,j) + S(i,j-1) - S(i-1,j-1)
+            prefix[i][j] = val 
+                         + prefix[i - 1][j] 
+                         + prefix[i][j - 1] 
+                         - prefix[i - 1][j - 1];
+        }
+    }
+    
+    // 2. Check all possible H×W subgrids
+    // i and j represent the 1-based index of the bottom-right corner of the subgrid.
+    for (int i = H; i <= R; ++i) {
+        for (int j = W; j <= C; ++j) {
+            
+            // Sum of the HxW rectangle ending at (i, j) in O(1) time
+            int count = prefix[i][j] 
+                      - prefix[i - H][j] 
+                      - prefix[i][j - W] 
+                      + prefix[i - H][j - W];
+                      
+            if (count >= required_count) {
+                return true; // Found a subgrid where the condition holds
+            }
+        }
+    }
+    
+    return false;
+}
+
+int main() {
+    // Optimization for fast I/O
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    
+    if (!(cin >> R >> C >> H >> W)) return 0;
+    
+    // Read the grid data
+    grid.resize(R, vector<int>(C));
+    for (int i = 0; i < R; ++i) {
+        for (int j = 0; j < C; ++j) {
+            cin >> grid[i][j];
+        }
+    }
+    
+    // Binary search on the answer (the quality rank).
+    // The search space is [1, R*C].
+    int low = 1;
+    int high = R * C;
+    int answer = high;
+    
+    while (low <= high) {
+        int mid = low + (high - low) / 2;
+        
+        if (is_feasible(mid)) {
+            // mid is a possible median. Record it and try for a better (smaller) one.
+            answer = mid;
+            high = mid - 1;
+        } else {
+            // mid is too small; we need a larger rank to satisfy the majority condition.
+            low = mid + 1;
+        }
+    }
+    
+    cout << answer << '\n';
+    
+    return 0;
+}
+
+=== Code Variant 8 ===
+#include <iostream>
+#include <vector>
+#include <algorithm>
+
+using namespace std;
+
+int main() {
+    ios_base::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int R, C, H, W;
+    cin >> R >> C >> H >> W;
+
+    vector<vector<int>> grid(R, vector<int>(C));
+    for (int i = 0; i < R; ++i) {
+        for (int j = 0; j < C; ++j) {
+            cin >> grid[i][j];
+        }
+    }
+
+    auto is_feasible = [&](int x) -> bool {
+        int required = (H * W + 1) / 2;
+        vector<vector<int>> prefix_sum(R + 1, vector<int>(C + 1, 0));
+
+        for (int i = 1; i <= R; ++i) {
+            for (int j = 1; j <= C; ++j) {
+                prefix_sum[i][j] = prefix_sum[i - 1][j] + prefix_sum[i][j - 1] - prefix_sum[i - 1][j - 1] + (grid[i - 1][j - 1] <= x);
+            }
+        }
+
+        for (int i = H; i <= R; ++i) {
+            for (int j = W; j <= C; ++j) {
+                int count = prefix_sum[i][j] - prefix_sum[i - H][j] - prefix_sum[i][j - W] + prefix_sum[i - H][j - W];
+                if (count >= required) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+
+    int low = 1;
+    int high = R * C;
+    int ans = high;
+
+    while (low <= high) {
+        int mid = low + (high - low) / 2;
+        if (is_feasible(mid)) {
+            ans = mid;
+            high = mid - 1;
+        } else {
+            low = mid + 1;
+        }
+    }
+
+    cout << ans << endl;
+
+    return 0;
+}
+
+=== Code Variant 9 ===
+#include <iostream>
+#include <vector>
+#include <algorithm>
+
+using namespace std;
+
+// Global variables to hold input dimensions and the grid data
+int R, C, H, W;
+vector<vector<int>> grid;
+
+/**
+ * Checks if there exists an H×W subgrid where the median is less than or equal to x.
+ * 
+ * For the median to be <= x in an H×W subgrid of size N=H*W, at least 
+ * K = ceil(N/2) = (N + 1)/2 elements must satisfy value <= x.
+ * 
+ * @param x The candidate median value (quality rank).
+ * @return true if such a subgrid exists, false otherwise.
+ */
+bool is_feasible(int x) {
+    // Required count for the median to be <= x.
+    // Since H and W are odd, H*W is odd. The median is the unique middle element.
+    // Thus, at least (H*W + 1)/2 elements must be less than or equal to the median.
+    const int required_count = (H * W + 1) / 2;
+    
+    // Prefix sum array for the binary grid. A cell (i, j) in this binary grid
+    // is 1 if grid[i-1][j-1] <= x, and 0 otherwise.
+    // Using 1-based indexing for standard 2D prefix sum calculations.
+    // prefix_sum[i][j] stores the count of elements <= x in the rectangle
+    // from grid[0][0] to grid[i-1][j-1].
+    vector<vector<int>> prefix_sum(R + 1, vector<int>(C + 1, 0));
+    
+    // 1. Build the 2D prefix sum array.
+    for (int i = 1; i <= R; ++i) {
+        for (int j = 1; j <= C; ++j) {
+            // Determine the binary value for the current cell (i-1, j-1).
+            // val is 1 if the quality rank is less than or equal to the candidate median x, else 0.
+            int val = (grid[i - 1][j - 1] <= x) ? 1 : 0;
+            
+            // Standard 2D prefix sum calculation using inclusion-exclusion:
+            // current_value + sum_above + sum_left - sum_top_left_diagonal
+            prefix_sum[i][j] = val 
+                             + prefix_sum[i - 1][j] 
+                             + prefix_sum[i][j - 1] 
+                             - prefix_sum[i - 1][j - 1];
+        }
+    }
+    
+    // 2. Check all possible H×W subgrids.
+    // The indices i and j represent the 1-based index of the bottom-right corner of the subgrid.
+    // The top-left corner of such a subgrid would be at (i-H, j-W) in 0-based indexing.
+    for (int i = H; i <= R; ++i) {
+        for (int j = W; j <= C; ++j) {
+            
+            // Calculate the sum of '1's (elements <= x) within the current HxW subgrid.
+            // This is done in O(1) using the precomputed prefix sums.
+            // The subgrid is defined by its bottom-right corner (i, j) and dimensions HxW.
+            // Its top-left corner (in 1-based indexing for prefix_sum array) is (i-H+1, j-W+1).
+            // The sum is calculated as:
+            // Sum(bottom-right) - Sum(region_above) - Sum(region_left) + Sum(top-left_region_double_subtracted)
+            int count = prefix_sum[i][j] 
+                      - prefix_sum[i - H][j] 
+                      - prefix_sum[i][j - W] 
+                      + prefix_sum[i - H][j - W];
+                      
+            // If the count of elements <= x in this subgrid is sufficient, then x is a feasible median.
+            if (count >= required_count) {
+                return true; // Found a subgrid where the condition holds.
+            }
+        }
+    }
+    
+    return false; // No HxW subgrid found where the median could be <= x.
+}
+
+int main() {
+    // Optimization for fast input/output.
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    
+    // Read grid dimensions (R rows, C columns) and subgrid dimensions (H height, W width).
+    // The problem guarantees H and W are odd.
+    if (!(cin >> R >> C >> H >> W)) {
+        return 1; // Return an error code if input fails.
+    }
+    
+    // Resize the grid to store the quality ranks.
+    grid.resize(R, vector<int>(C));
+    
+    // Read the grid data. Quality ranks are distinct integers from 1 to R*C.
+    for (int i = 0; i < R; ++i) {
+        for (int j = 0; j < C; ++j) {
+            cin >> grid[i][j];
+        }
+    }
+    
+    // Binary search on the answer. The answer is the smallest possible median quality rank.
+    // The possible range for the median rank is from 1 (best) to R*C (worst).
+    int low = 1;
+    int high = R * C;
+    int answer = high; // Initialize the answer to the worst possible rank.
+    
+    // The binary search loop continues as long as the search space [low, high] is valid.
+    while (low <= high) {
+        // Calculate the middle value. `low + (high - low) / 2` is used to prevent
+        // potential integer overflow that could occur with `(low + high) / 2`.
+        int mid = low + (high - low) / 2;
+        
+        // Check if `mid` is a feasible median value.
+        if (is_feasible(mid)) {
+            // If `mid` is feasible, it means there is at least one HxW subgrid whose median
+            // is less than or equal to `mid`. This `mid` is a potential answer.
+            // We record `mid` and try to find an even smaller (better) median by searching
+            // in the lower half of the current range: [low, mid - 1].
+            answer = mid;
+            high = mid - 1;
+        } else {
+            // If `mid` is not feasible, it means no HxW subgrid has a median less than or equal to `mid`.
+            // Therefore, the actual minimum median must be greater than `mid`.
+            // We search in the upper half of the current range: [mid + 1, high].
+            low = mid + 1;
+        }
+    }
+    
+    // Output the best (smallest) median quality rank found.
+    cout << answer << '\n';
+    
+    return 0; // Indicate successful execution.
+}
+
+=== Code Variant 10 ===
+#include <iostream>
+#include <vector>
+#include <algorithm>
+
+using namespace std;
+
+// Global variables to hold input dimensions and the grid data
+int R, C, H, W;
+vector<vector<int>> grid;
+
+/**
+ * Checks if there exists an H×W subgrid where the median is less than or equal to x.
+ *
+ * For the median to be <= x in an H×W subgrid of size N=H*W, at least
+ * K = ceil(N/2) = (N + 1)/2 elements must satisfy value <= x.
+ *
+ * @param x The candidate median value (quality rank).
+ * @return true if such a subgrid exists, false otherwise.
+ */
+bool is_feasible(int x) {
+    // Required number of elements <= x for x to be the median (or better)
+    const int required_count = (H * W + 1) / 2;
+
+    // Prefix sum array for the binary grid (1 if grid[i][j] <= x, else 0)
+    // Using 1-based indexing (size R+1 x C+1) for standard prefix sum calculations.
+    vector<vector<int>> prefix(R + 1, vector<int>(C + 1, 0));
+
+    // 1. Build the 2D prefix sum array
+    for (int i = 1; i <= R; ++i) {
+        for (int j = 1; j <= C; ++j) {
+            // Binary value for the cell grid[i-1][j-1]
+            int val = (grid[i - 1][j - 1] <= x) ? 1 : 0;
+
+            // Standard 2D prefix sum calculation: S(i,j) = val + S(i-1,j) + S(i,j-1) - S(i-1,j-1)
+            prefix[i][j] = val
+                         + prefix[i - 1][j]
+                         + prefix[i][j - 1]
+                         - prefix[i - 1][j - 1];
+        }
+    }
+
+    // 2. Check all possible H×W subgrids
+    // i and j represent the 1-based index of the bottom-right corner of the subgrid.
+    for (int i = H; i <= R; ++i) {
+        for (int j = W; j <= C; ++j) {
+
+            // Sum of the HxW rectangle ending at (i, j) using inclusion-exclusion principle
+            int count = prefix[i][j]
+                      - prefix[i - H][j]
+                      - prefix[i][j - W]
+                      + prefix[i - H][j - W];
+
+            if (count >= required_count) {
+                return true; // Found a subgrid where the condition holds
+            }
+        }
+    }
+
+    return false;
+}
+
+int main() {
+    // Optimization for fast I/O
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    if (!(cin >> R >> C >> H >> W)) return 0;
+
+    // Read the grid data
+    grid.resize(R, vector<int>(C));
+    for (int i = 0; i < R; ++i) {
+        for (int j = 0; j < C; ++j) {
+            cin >> grid[i][j];
+        }
+    }
+
+    // Binary search on the answer (the quality rank).
+    // The range of possible median ranks is [1, R*C].
+    int low = 1;
+    int high = R * C;
+    int answer = high;
+
+    while (low <= high) {
+        int mid = low + (high - low) / 2;
+
+        if (is_feasible(mid)) {
+            // mid is achievable. Record it as the best answer so far, and try for a better (smaller) one.
+            answer = mid;
+            high = mid - 1;
+        } else {
+            // mid is too small; we need a larger median rank.
+            low = mid + 1;
+        }
+    }
+
+    cout << answer << '\n';
+
+    return 0;
+}
+
+=== Code Variant 11 ===
+#include <iostream>
+#include <vector>
+#include <algorithm>
+
+using namespace std;
+
+// Global variables to hold input dimensions and the grid data for easy access
+int R, C, H, W;
+vector<vector<int>> grid;
+
+/**
+ * Checks if there exists an H×W subgrid where the median is less than or equal to x.
+ * 
+ * For the median to be <= x in an H×W subgrid (where N=H*W is odd), at least 
+ * K = (N + 1)/2 elements must satisfy value <= x.
+ * 
+ * @param x The candidate median value (quality rank).
+ * @return true if such a subgrid exists, false otherwise.
+ */
+bool is_feasible(int x) {
+    // Calculate the required count of elements <= x for x to be the median or better.
+    const int required_count = (H * W + 1) / 2;
+    
+    // Prefix sum array for the binary grid (1 if grid[i][j] <= x, else 0)
+    // Using 1-based indexing (R+1 x C+1) for standard prefix sum calculations.
+    vector<vector<int>> prefix(R + 1, vector<int>(C + 1, 0));
+    
+    // 1. Build the 2D prefix sum array in O(R*C)
+    for (int i = 1; i <= R; ++i) {
+        for (int j = 1; j <= C; ++j) {
+            // Binary value for the cell (i-1, j-1) in the original grid
+            int val = (grid[i - 1][j - 1] <= x) ? 1 : 0;
+            
+            // Standard 2D prefix sum update formula
+            prefix[i][j] = val 
+                         + prefix[i - 1][j] 
+                         + prefix[i][j - 1] 
+                         - prefix[i - 1][j - 1];
+        }
+    }
+    
+    // 2. Check all possible H×W subgrids in O(R*C)
+    // i and j represent the 1-based index of the bottom-right corner of the subgrid.
+    for (int i = H; i <= R; ++i) {
+        for (int j = W; j <= C; ++j) {
+            
+            // Calculate the sum (count of '1's) in the HxW rectangle ending at (i, j) in O(1)
+            int count = prefix[i][j] 
+                      - prefix[i - H][j]         // Subtract area above
+                      - prefix[i][j - W]         // Subtract area to the left
+                      + prefix[i - H][j - W];    // Add back the double-subtracted top-left corner
+                      
+            if (count >= required_count) {
+                return true; // Found a subgrid where the condition holds
+            }
+        }
+    }
+    
+    return false;
+}
+
+int main() {
+    // Optimization for fast I/O
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+    
+    // Read dimensions
+    if (!(cin >> R >> C >> H >> W)) return 0;
+    
+    // Read the grid data
+    grid.resize(R, vector<int>(C));
+    for (int i = 0; i < R; ++i) {
+        for (int j = 0; j < C; ++j) {
+            cin >> grid[i][j];
+        }
+    }
+    
+    // Binary search on the answer (the minimal achievable median rank)
+    // Search space is [1, R*C]
+    int low = 1;
+    int high = R * C;
+    int answer = high; // Initialize answer to the worst possible rank
+    
+    while (low <= high) {
+        int mid = low + (high - low) / 2;
+        
+        if (is_feasible(mid)) {
+            // mid is achievable. Record it and try for a better (smaller) one.
+            answer = mid;
+            high = mid - 1;
+        } else {
+            // mid is too small; we need a larger rank.
+            low = mid + 1;
+        }
+    }
+    
+    cout << answer << '\n';
+    
+    return 0;
+}
+
+=== Code Variant 12 ===
+#include <iostream>
+#include <vector>
+
+using namespace std;
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int R, C, H, W;
+    if (!(cin >> R >> C >> H >> W)) return 0;
+
+    vector<vector<int>> a(R, vector<int>(C));
+    for (int i = 0; i < R; ++i) {
+        for (int j = 0; j < C; ++j) {
+            cin >> a[i][j];
+        }
+    }
+
+    const int need = (H * W + 1) / 2;
+
+    auto feasible = [&](int x) -> bool {
+        vector<vector<int>> pref(R + 1, vector<int>(C + 1, 0));
+        for (int i = 1; i <= R; ++i) {
+            for (int j = 1; j <= C; ++j) {
+                int val = (a[i - 1][j - 1] <= x) ? 1 : 0;
+                pref[i][j] = pref[i - 1][j] + pref[i][j - 1] - pref[i - 1][j - 1] + val;
+            }
+        }
+
+        for (int i = H; i <= R; ++i) {
+            for (int j = W; j <= C; ++j) {
+                int cnt = pref[i][j] - pref[i - H][j] - pref[i][j - W] + pref[i - H][j - W];
+                if (cnt >= need) return true;
+            }
+        }
+        return false;
+    };
+
+    int lo = 1, hi = R * C, ans = hi;
+    while (lo <= hi) {
+        int mid = lo + (hi - lo) / 2;
+        if (feasible(mid)) {
+            ans = mid;
+            hi = mid - 1;
+        } else {
+            lo = mid + 1;
+        }
+    }
+
+    cout << ans << '\n';
+    return 0;
+}
+
+=== Code Variant 13 ===
+#include <iostream>
+#include <vector>
+#include <algorithm> // Not strictly necessary for this specific problem, but good practice for competitive programming with vectors
+
+// Global variables for grid dimensions and the grid itself.
+// This is a common pattern in competitive programming to avoid
+// repeatedly passing these parameters to helper functions.
+int R_global, C_global, H_global, W_global;
+std::vector<std::vector<int>> grid_global;
+
+/**
+ * @brief Checks if a candidate median value `x` is achievable in any HxW subgrid.
+ *
+ * For `x` to be a median (or better) in an H_global x W_global subgrid,
+ * at least `(H_global * W_global + 1) / 2` elements within that subgrid
+ * must have a quality rank less than or equal to `x`. This is because
+ * H_global * W_global is odd, so the median is the unique middle element
+ * when sorted.
+ *
+ * This function works by:
+ * 1. Transforming the original `grid_global` into a temporary binary matrix.
+ *    A cell `(i, j)` in this binary matrix is 1 if `grid_global[i][j] <= x`,
+ *    and 0 otherwise.
+ * 2. Computing 2D prefix sums (also known as an integral image) on this binary matrix.
+ *    This allows for constant-time retrieval of the sum of 1s (i.e., count of elements <= x)
+ *    within any rectangular subregion.
+ * 3. Iterating through all possible H_global x W_global subgrids. For each subgrid,
+ *    it uses the precomputed 2D prefix sums to quickly determine if it contains
+ *    at least the `required_count` elements that are less than or equal to `x`.
+ *
+ * @param x The candidate median value to test.
+ * @return `true` if such an HxW subgrid exists (meaning `x` or a smaller value could be the median),
+ *         `false` otherwise.
+ */
+bool is_feasible(int x) {
+    // Calculate the minimum number of elements that must be <= x within an HxW subgrid.
+    // Since H_global and W_global are odd, H_global * W_global is also odd.
+    // The median of an odd-sized set is the (N/2 + 1)-th smallest element.
+    // Thus, at least (H_global * W_global + 1) / 2 elements must be <= the median.
+    const int required_count = (H_global * W_global + 1) / 2;
+
+    // Create a 2D prefix sum array, initialized to zeros.
+    // We use 1-based indexing for the prefix_sum array to simplify calculations
+    // for subrectangle sums (avoiding checks for i-1 or j-1 being less than 0).
+    std::vector<std::vector<int>> prefix_sums(R_global + 1, std::vector<int>(C_global + 1, 0));
+
+    // Build the 2D prefix sum array.
+    // `prefix_sums[i][j]` will store the count of elements `v` such that `v <= x`
+    // within the rectangle from `grid_global[0][0]` to `grid_global[i-1][j-1]`.
+    for (int i = 1; i <= R_global; ++i) {
+        for (int j = 1; j <= C_global; ++j) {
+            // Determine if the current element `grid_global[i-1][j-1]` is <= `x`.
+            // `val` will be 1 if it is, 0 otherwise.
+            int val = (grid_global[i - 1][j - 1] <= x) ? 1 : 0;
+
+            // Apply the standard 2D prefix sum formula:
+            // S(i,j) = val(i,j) + S(i-1,j) + S(i,j-1) - S(i-1,j-1)
+            prefix_sums[i][j] = val + prefix_sums[i - 1][j] + prefix_sums[i][j - 1] - prefix_sums[i - 1][j - 1];
+        }
+    }
+
+    // Iterate through all possible H_global x W_global subgrids.
+    // `i` and `j` here represent the 1-based row and column indices of the
+    // bottom-right corner of the current H_global x W_global subgrid
+    // in the `prefix_sums` array.
+    // This corresponds to a subgrid whose top-left corner is at `(i-H_global, j-W_global)`
+    // (when using 1-based indexing for prefix sums).
+    for (int i = H_global; i <= R_global; ++i) {
+        for (int j = W_global; j <= C_global; ++j) {
+            // Calculate the count of elements <= `x` within the current H_global x W_global subgrid.
+            // This is done using the 2D prefix sum inclusion-exclusion principle:
+            // Count = S(bottom-right) - S(top-right-excluded) - S(bottom-left-excluded) + S(top-left-double-excluded)
+            int ones_count = prefix_sums[i][j]
+                           - prefix_sums[i - H_global][j]
+                           - prefix_sums[i][j - W_global]
+                           + prefix_sums[i - H_global][j - W_global];
+
+            // If this subgrid contains enough elements <= `x`, then `x` is a feasible median.
+            if (ones_count >= required_count) {
+                return true;
+            }
+        }
+    }
+
+    // If no H_global x W_global subgrid was found that satisfies the condition, `x` is not feasible.
+    return false;
+}
+
+int main() {
+    // Optimize C++ standard streams for faster input/output operations.
+    // This is crucial for problems with large inputs or tight time limits.
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+
+    // Read the grid dimensions (R rows, C columns) and subgrid dimensions (H height, W width).
+    // It's good practice to check if input operations succeed, though competitive programming
+    // problems usually guarantee valid initial input.
+    if (!(std::cin >> R_global >> C_global >> H_global >> W_global)) {
+        return 1; // Indicate an error if input fails
+    }
+
+    // Resize the global `grid_global` vector to accommodate the input dimensions.
+    grid_global.resize(R_global, std::vector<int>(C_global));
+
+    // Read the quality ranks for each cell in the R_global x C_global grid.
+    for (int i = 0; i < R_global; ++i) {
+        for (int j = 0; j < C_global; ++j) {
+            std::cin >> grid_global[i][j];
+        }
+    }
+
+    // Perform a binary search on the possible values of the median.
+    // The quality ranks are distinct integers from 1 to R_global * C_global.
+    // We are looking for the smallest `x` such that `is_feasible(x)` is true.
+    int low = 1;
+    int high = R_global * C_global;
+    int answer = high; // Initialize `answer` with the largest possible value, as we seek the minimum.
+
+    // The binary search loop continues as long as `low` is less than or equal to `high`.
+    while (low <= high) {
+        // Calculate the middle value. The `low + (high - low) / 2` form is preferred
+        // over `(low + high) / 2` to prevent potential integer overflow if `low` and `high` are very large.
+        int mid = low + (high - low) / 2;
+
+        // Check if `mid` is a feasible median value.
+        if (is_feasible(mid)) {
+            // If `mid` is feasible, it means we found a subgrid whose median is `mid` or better.
+            // We store `mid` as a potential `answer` and try to find an even smaller (better) median
+            // by searching in the lower half of the current range.
+            answer = mid;
+            high = mid - 1;
+        } else {
+            // If `mid` is not feasible, it means no subgrid has a median of `mid` or better.
+            // Thus, `mid` is too small, and we need to search for a larger median in the upper half.
+            low = mid + 1;
+        }
+    }
+
+    // Output the `answer`, which will be the smallest possible median quality rank found.
+    std::cout << answer << '\n';
+
+    return 0; // Indicate successful execution.
+}
+
+=== Code Variant 14 ===
+#include <iostream>
+#include <vector>
+#include <algorithm>
+
+using namespace std;
+
+int main() {
+    // Optimization for fast I/O
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int R, C, H, W;
+    // Read dimensions: R rows, C columns; subgrid H height, W width
+    if (!(cin >> R >> C >> H >> W)) return 0;
+
+    // Read the grid data
+    vector<vector<int>> grid(R, vector<int>(C));
+    for (int i = 0; i < R; ++i) {
+        for (int j = 0; j < C; ++j) {
+            cin >> grid[i][j];
+        }
+    }
+
+    // Required count: Since H*W is odd, the median is the (H*W+1)/2 smallest element.
+    const int required_count = (H * W + 1) / 2;
+
+    // Pre-allocate the prefix sum array (R+1 x C+1) to be reused in each binary search iteration,
+    // avoiding repeated memory allocation overhead.
+    vector<vector<int>> pref(R + 1, vector<int>(C + 1));
+
+    /**
+     * @brief Checks if there exists an HxW subgrid where the median is less than or equal to x.
+     * @param x The candidate median value (rank).
+     * @return true if feasible, false otherwise.
+     */
+    auto is_feasible = [&](int x) -> bool {
+        
+        // 1. Build the 2D prefix sum array for the binary matrix (1 if grid[i][j] <= x)
+        for (int i = 1; i <= R; ++i) {
+            for (int j = 1; j <= C; ++j) {
+                // Binary value for the cell (i-1, j-1)
+                int val = (grid[i - 1][j - 1] <= x) ? 1 : 0;
+                
+                // Standard 2D prefix sum calculation
+                pref[i][j] = val + pref[i - 1][j] + pref[i][j - 1] - pref[i - 1][j - 1];
+            }
+        }
+
+        // 2. Check all possible HxW subgrids
+        // i and j are the 1-based indices of the bottom-right corner
+        for (int i = H; i <= R; ++i) {
+            for (int j = W; j <= C; ++j) {
+                
+                // Calculate count of elements <= x in the HxW rectangle in O(1)
+                int count = pref[i][j] 
+                          - pref[i - H][j] 
+                          - pref[i][j - W] 
+                          + pref[i - H][j - W];
+                          
+                if (count >= required_count) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
+
+    // Binary search for the minimal achievable median rank [1, R*C]
+    int low = 1;
+    int high = R * C;
+    int answer = high;
+
+    while (low <= high) {
+        int mid = low + (high - low) / 2;
+        
+        if (is_feasible(mid)) {
+            // mid is achievable. Record and try for a better (smaller) rank.
+            answer = mid;
+            high = mid - 1;
+        } else {
+            // mid is too small. Need a larger rank.
+            low = mid + 1;
+        }
+    }
+
+    cout << answer << '\n';
+
+    return 0;
+}
+

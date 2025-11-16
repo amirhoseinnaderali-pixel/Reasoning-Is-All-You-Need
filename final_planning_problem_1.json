@@ -1,0 +1,30 @@
+[
+  {
+    "model": "deepseek-v3.1:671b-cloud",
+    "algorithm": "Deterministic First-Occurrence Matching",
+    "approach": "Maintain a dictionary mapping each letter to the position of its first occurrence. Iterate through all 50 positions sequentially. For each position i, call faceup(i). If the revealed letter is already in the dictionary at position j, immediately call faceup(j) to match the pair and collect the candy. Otherwise, store the letter and position i in the dictionary. This ensures each pair is matched using exactly two calls upon discovering its second occurrence, guaranteeing a maximum of 50 calls total.",
+    "time_complexity": "O(N)",
+    "space_complexity": "O(N)"
+  },
+  {
+    "model": "qwen3-coder:480b-cloud",
+    "algorithm": "First-Occurrence Memory Matching",
+    "approach": "Iterate through each card position and call faceup() to reveal the letter. Maintain a hash map storing the first-seen position of each letter. If the revealed letter already exists in the map, immediately call faceup() on the stored position to collect the pair. Otherwise, store the current position for that letter. This ensures each pair is matched using exactly two faceup() calls, guaranteeing completion within 50 discovery calls and 50 matching calls.",
+    "time_complexity": "O(N)",
+    "space_complexity": "O(K)"
+  },
+  {
+    "model": "gpt-oss:120b-cloud",
+    "algorithm": "First‑Occurrence Matching with Hash Map",
+    "approach": "Iterate over the 50 card indices. For each index i call faceup(i). Let the revealed letter be L. If L is not in a hash map, store i as the first position of L. If L is already in the map at position j, immediately call faceup(j) in the same turn to show both copies together and collect the candy, then delete L from the map. Because each pair is resolved exactly when its second copy is seen, at most two calls are used per pair, guaranteeing ≤50 calls total (well under the 100‑call limit).",
+    "time_complexity": "O(N) where N = 50",
+    "space_complexity": "O(K) where K = 25 (number of distinct letters)"
+  },
+  {
+    "model": "minimax-m2:cloud",
+    "algorithm": "First-Occurrence Memory Matching",
+    "approach": "Maintain a dictionary storing the position of each letter's first occurrence. Iterate sequentially through all 50 positions, calling faceup(i) for each card. When revealing a card with letter L, if L already exists in the dictionary at position j, immediately call faceup(j) to collect the pair (2 calls total). If L is new, store position i in the dictionary. This guarantees each pair is resolved with exactly 2 calls upon discovering its second occurrence, staying within the 100-call limit.",
+    "time_complexity": "O(N) where N=50 cards",
+    "space_complexity": "O(L) where L=25 unique letters"
+  }
+]

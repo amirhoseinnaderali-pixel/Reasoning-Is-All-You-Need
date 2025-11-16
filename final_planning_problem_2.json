@@ -1,0 +1,30 @@
+[
+  {
+    "model": "deepseek-v3.1:671b-cloud",
+    "algorithm": "Binary Search on Answer with 2D Prefix Sum Validation",
+    "approach": "Binary search over possible median values from 1 to R×C. For each candidate x, transform the grid into a binary matrix where cells ≤ x become 1 and others 0, then compute 2D prefix sums. Check all H×W subgrids in O(1) time each using prefix sums to see if any has at least (H×W+1)/2 ones. The smallest x where this occurs is the minimal achievable median.",
+    "time_complexity": "O(R·C·log(R·C))",
+    "space_complexity": "O(R·C)"
+  },
+  {
+    "model": "qwen3-coder:480b-cloud",
+    "algorithm": "Binary Search on Answer with 2D Prefix Sums",
+    "approach": "Binary search is performed on the possible median values from 1 to R*C. For each candidate median, the grid is transformed into a binary matrix where cells with rank <= candidate are 1 and others are 0. Using 2D prefix sums, we efficiently compute the sum of 1s in every HxW subgrid in O(1) time. If any subgrid has at least (H*W + 1)/2 ones, the candidate is feasible and we search for a smaller one; otherwise, we search for a larger one.",
+    "time_complexity": "O(R * C * log(R * C))",
+    "space_complexity": "O(R * C)"
+  },
+  {
+    "model": "gpt-oss:120b-cloud",
+    "algorithm": "Binary Search on Median + 2D Prefix Sum Check",
+    "approach": "Use monotonicity: if a value K can be the median of some H×W subgrid, any larger value also works. Binary search K in [1, R·C]. For each candidate, build a binary matrix marking cells ≤K as 1, compute its 2‑D prefix sums, and scan all possible subgrids, using the prefix sums to obtain the count of 1s in O(1). If any subgrid has at least (H·W+1)/2 ones, K is feasible; adjust the search accordingly. The smallest feasible K is the answer.",
+    "time_complexity": "O(R·C·log(R·C))",
+    "space_complexity": "O(R·C)"
+  },
+  {
+    "model": "minimax-m2:cloud",
+    "algorithm": "Binary Search on Answer with 2D Prefix Sum Check",
+    "approach": "Binary search over possible median values (1 to R*C). For each candidate median X, transform the grid into a binary matrix where cells ≤ X are 1, others 0. Compute 2D prefix sums to efficiently count elements ≤ X in any H×W subgrid. If any subgrid contains at least (H*W+1)/2 such elements, X is feasible and we search smaller values. The monotonicity property enables binary search to find the smallest feasible median.",
+    "time_complexity": "O(R*C*log(R*C))",
+    "space_complexity": "O(R*C)"
+  }
+]

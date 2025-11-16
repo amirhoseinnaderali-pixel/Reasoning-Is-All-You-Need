@@ -1,0 +1,30 @@
+[
+  {
+    "model": "deepseek-v3.1:671b-cloud",
+    "algorithm": "Inversion Counting via Optimal Pair Ordering with Fenwick Tree",
+    "approach": "First, determine the optimal ordering of shoe pairs by sorting them based on the minimum of their left and right shoe initial positions. Then, assign each pair to consecutive positions (left at 2i, right at 2i+1) in this order. The minimum swaps equals the inversion count between the initial positions of shoes and their target positions in this optimal arrangement, computed efficiently with a Fenwick Tree.",
+    "time_complexity": "O(n log n)",
+    "space_complexity": "O(n)"
+  },
+  {
+    "model": "qwen3-coder:480b-cloud",
+    "algorithm": "Greedy Pairing with Fenwick Tree Inversion Counting",
+    "approach": "Process shoes from left to right, greedily pairing each left shoe with its corresponding right shoe. For each pair, calculate the number of adjacent swaps needed to bring the right shoe next to the left shoe by counting inversions using a Fenwick Tree (BIT) that tracks occupied positions. Update the BIT as positions are filled to maintain accuracy. The sum of all inversion counts gives the minimum swaps.",
+    "time_complexity": "O(n log n)",
+    "space_complexity": "O(n)"
+  },
+  {
+    "model": "gpt-oss:120b-cloud",
+    "algorithm": "Greedy Pairing with Fenwick Tree (BIT)",
+    "approach": "Scan the line from left to right. When a left shoe (negative value) is found, locate its matching right shoe using a pre‑stored index. The number of adjacent swaps needed to bring that right shoe next to the left one equals the count of shoes still present between the two positions, which is obtained by a Fenwick tree storing 1 for each not‑yet‑removed position. Add this count to the answer, then delete both shoes from the tree (update two positions to 0). Continue until all shoes are paired.",
+    "time_complexity": "O(n log n)",
+    "space_complexity": "O(n)"
+  },
+  {
+    "model": "minimax-m2:cloud",
+    "algorithm": "Greedy Interval Processing with Fenwick Tree",
+    "approach": "Group shoes by size and record their positions as intervals [left_pos, right_pos]. Sort intervals by left endpoint. Process intervals in order, using a Fenwick tree to count how many active intervals (unprocessed shoes) intersect with current interval. The number of swaps needed for current pair equals intersecting_intervals + nested_intervals. After processing, mark both endpoints as processed in the tree. Total swaps is sum of all crossing costs.",
+    "time_complexity": "O(n log n)",
+    "space_complexity": "O(n)"
+  }
+]
