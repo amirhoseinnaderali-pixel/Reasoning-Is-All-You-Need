@@ -17,15 +17,7 @@ from datetime import datetime
 
 from ollama_client import chat_completion
 from google import genai
-api_key_google_list =[
-        "AIzaSyBXC7krDh4mvI4VPKFUHpmkDrEcigOE00o",
-        "AIzaSyAiSR_exmQehaC7Q0HPnuQUhr0S9jCtQFs",
-        "AIzaSyAVhlHdikARNiTbyJLEBtExGBJPTCWucOg",
-        "AIzaSyBt9wnZwb6gGm13gXIDLAs01JuF3PoSnBw",
-    ]
-
-
-def call_model(model: str, prompt: str,api_key_google: str,api_key_ollama: str, timeout: int = 120) -> dict:
+api_key_google_list = GOOGLE_API_KEYS\ndef call_model(model: str, prompt: str,api_key_google: str,api_key_ollama: str, timeout: int = 120) -> dict:
     import time
     import threading
     global _current_google_api_key_index
@@ -372,23 +364,7 @@ class CppSandbox:
        
 
     
-_GOOGLE_API_KEY = (
-    
-        "AIzaSyD4-OYglZP9aqgtvLiJ5zLdWWmWMYMWENQ", 
-        "AIzaSyAcuYSRxIu7Ikq5oaiYSp85ZhD6ned5GWI",
-        "AIzaSyB3geZNufz1qM92gAxJpIzK0M3FOyzoStk",
-        "AIzaSyDANYHSgMUfyzNNG94L2RaL8kAHh4dkvTM",
-)
-_OLLAMA_API_KEY = (
-    "66b7ca3198584136a86660733672b5ab.NO-wYz2AeqN7Bf0rRSrLkb0H",
-        "3423a52360bf468588b6c80e6957ea1d.nQBGpbmZzCvwWysfb6ORjbGd",
-        "77408cf3484946d8bb8cf37220ad2721.837tfoOLJmV3FEka43ozQlZF",
-        "9c75046d041a4dca811fd2eaaf3e5696.RH4yyGnyj-qwU8BLCRSr4j7P"
-
-)
-
-
-def _build_model_configs() -> List[Dict[str, str]]:
+_GOOGLE_API_KEY = tuple(GOOGLE_API_KEYS)\n_OLLAMA_API_KEY = tuple(OLLAMA_API_KEYS)\ndef _build_model_configs() -> List[Dict[str, str]]:
     configs: List[Dict[str, str]] = []
     for model_name in IMPLEMENTATION_MODELS:
         if not isinstance(model_name, str) or not model_name.strip():
@@ -451,7 +427,7 @@ async def call_model_with_retry____________________________________________(
         ollama_key = _OLLAMA_API_KEY[0] if _OLLAMA_API_KEY else ""
         return await loop.run_in_executor(
             None,
-            lambda: call_model(model, combined_prompt, api_key_google=api_key_google,api_key_ollama="") 
+            lambda: call_model(model, combined_prompt, api_key_google=api_key_google,api_key_ollama=ollama_key) 
         )
 
     last_error: str | None = None
