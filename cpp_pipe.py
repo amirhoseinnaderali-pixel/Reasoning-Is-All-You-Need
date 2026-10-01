@@ -17,12 +17,9 @@ from datetime import datetime
 
 from ollama_client import chat_completion
 from google import genai
-api_key_google_list =[
-        "AIzaSyBXC7krDh4mvI4VPKFUHpmkDrEcigOE00o",
-        "AIzaSyAiSR_exmQehaC7Q0HPnuQUhr0S9jCtQFs",
-        "AIzaSyAVhlHdikARNiTbyJLEBtExGBJPTCWucOg",
-        "AIzaSyBt9wnZwb6gGm13gXIDLAs01JuF3PoSnBw",
-    ]
+api_key_google_list = [
+    key.strip() for key in os.getenv("GOOGLE_API_KEYS", "").split(",") if key.strip()
+]
 
 
 def call_model(model: str, prompt: str,api_key_google: str,api_key_ollama: str, timeout: int = 120) -> dict:
