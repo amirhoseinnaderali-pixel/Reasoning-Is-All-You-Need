@@ -150,12 +150,27 @@ ollama pull deepseek-v3.1:671b-cloud
 
 #### API Keys Configuration
 
-Set your API keys in the corresponding files:
+Credentials are loaded from environment variables; never commit API keys to source code.
 
-- `main.py`: lists `api_key_google_list` and `api_key_ollama_list`
-- `planning.py`: uses the key passed into its functions
-- `cpp_pipe.py`: list `api_key_google_list`
+For one shared key:
+```bash
+export GOOGLE_API_KEY="your-google-genai-key"
+export OLLAMA_API_KEY="your-ollama-key"
+```
 
+For stage-specific keys, optionally define:
+```bash
+export GOOGLE_API_KEY_1="..."
+export GOOGLE_API_KEY_2="..."
+export GOOGLE_API_KEY_3="..."
+export GOOGLE_API_KEY_4="..."
+export OLLAMA_API_KEY_1="..."
+export OLLAMA_API_KEY_2="..."
+export OLLAMA_API_KEY_3="..."
+export OLLAMA_API_KEY_4="..."
+```
+
+The numbered keys override the base key only for the corresponding stage. If a numbered key is missing, the base key is reused.
 ---
 
 ### Project Structure
