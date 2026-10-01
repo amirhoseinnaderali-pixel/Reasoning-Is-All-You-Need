@@ -1,5 +1,5 @@
 import json
-import re
+from secrets_config import GOOGLE_API_KEYS\nimport re
 import time
 from string import Template
 from ollama_client import chat_completion
@@ -356,7 +356,7 @@ def process_dataset_with_resume(
 
 # === USAGE EXAMPLE ===
 if __name__ == "__main__":
-    api_key = "AIzaSyDANYHSgMUfyzNNG94L2RaL8kAHh4dkvTM"
+    api_key = os.getenv("GOOGLE_API_KEY", "")
     
     cleaned = process_dataset_with_resume(
         dataset_name="HumanLastCodeExam/ioi",
