@@ -441,14 +441,21 @@ async def call_model_with_retry____________________________________________(
     if system_prompt:
         combined_prompt = f"{system_prompt.strip()}\n\n{prompt}"
 
+    if not api_key_google and model.startswith("gemini-"):
+        api_key_google = os.getenv("GOOGLE_API_KEY", "") or os.getenv("GOOGLE_API_KEYS", "").split(",")[0].strip()
+    api_key_ollama = os.getenv("OLLAMA_API_KEY", "") or os.getenv("OLLAMA_API_KEYS", "").split(",")[0].strip()
+
     loop = asyncio.get_running_loop()
 
     async def _invoke() -> dict:
-        # Use first API key as placeholder (call_model handles rotation internally)
-        ollama_key = _OLLAMA_API_KEY[0] if _OLLAMA_API_KEY else ""
         return await loop.run_in_executor(
             None,
-            lambda: call_model(model, combined_prompt, api_key_google=api_key_google,api_key_ollama="") 
+            lambda: call_model(
+                model,
+                combined_prompt,
+                api_key_google=api_key_google,
+                api_key_ollama=api_key_ollama,
+            )
         )
 
     last_error: str | None = None
