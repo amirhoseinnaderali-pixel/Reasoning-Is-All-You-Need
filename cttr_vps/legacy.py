@@ -12,13 +12,6 @@ def get_model_config(model_name: str) -> dict[str, str]:
     provider = "google-genai" if model_name.startswith("gemini-") else "ollama"
     return {"provider": provider, "model": model_name, "name": model_name}
 
-
-def strong_models() -> list[dict[str, str]]:
-    from cpp_pipe import ModelConfig
-
-    return [dict(item) for item in ModelConfig.STRONG_MODELS]
-
-
 async def generate_code(
     plan: str,
     problem: str,
@@ -26,6 +19,7 @@ async def generate_code(
     best_code: str = "",
     model_name: str,
     api_key_google: str = "",
+    api_key_ollama: str = "",
     iteration: int = 1,
     speed: int = 1,
     memory: int = 512,
@@ -44,7 +38,14 @@ async def generate_code(
     )
 
 
-async def debug_code(code: str, tests: list[dict[str, Any]], problem: str, model_name: str, api_key_google: str = ""):
+async def debug_code(
+    code: str,
+    tests: list[dict[str, Any]],
+    problem: str,
+    model_name: str,
+    api_key_google: str = "",
+    api_key_ollama: str = "",
+):
     from _30step import debug_and_fix_with_model
 
     return await debug_and_fix_with_model(
@@ -73,6 +74,26 @@ async def run_planning_round(
         google_key,
         ollama_key,
         filename,
+        previous_planning_results=previous_results,
+        output_dir=output_dir,
+    )
+
+
+async def optimize_codes(candidate_codes: list[str], output_dir: str) -> list[str]:
+    from optim import optimizer
+
+    return await optimizer(candidate_codes, output_dir)
+
+
+async def debug_all_models(
+    code: str,
+    tests: list[dict[str, Any]],
+    problem: str,
+    google_key: str,
+):
+    from _30step import debug_with_all_models
+
+    return await debug_with_all_models(code, tests, problem=problem, api_key_google=google_key)
         previous_planning_results=previous_results,
         output_dir=output_dir,
     )
