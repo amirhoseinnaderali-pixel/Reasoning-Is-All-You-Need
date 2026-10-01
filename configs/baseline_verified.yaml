@@ -1,0 +1,12 @@
+experiment_id: null
+method: execution_refine
+output_dir: results
+dataset:
+  path: ioi_multi_view.json
+  problem_index: 0
+model: gemini-2.5-flash
+refinement_rounds: 5
+verification:
+  timeout_s: 5
+  memory_mb: 512
+  max_tests: null

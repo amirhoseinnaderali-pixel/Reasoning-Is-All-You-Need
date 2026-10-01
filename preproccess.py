@@ -356,7 +356,7 @@ def process_dataset_with_resume(
 
 # === USAGE EXAMPLE ===
 if __name__ == "__main__":
-    api_key = "AIzaSyDANYHSgMUfyzNNG94L2RaL8kAHh4dkvTM"
+    api_key = ""
     
     cleaned = process_dataset_with_resume(
         dataset_name="HumanLastCodeExam/ioi",

@@ -1,0 +1,14 @@
+experiment_id: null
+method: cttr_vps
+output_dir: results
+dataset:
+  path: ioi_multi_view.json
+  problem_index: 0
+planning_rounds: 3
+generation_rounds: 5
+candidates_per_round: 20
+debug_models: true
+verification:
+  timeout_s: 5
+  memory_mb: 512
+  max_tests: null

@@ -245,12 +245,7 @@ async def optimizer(code_list: List[str],output_dir: str):
 
 
 
-    api_key_google_list =[
-        "AIzaSyBXC7krDh4mvI4VPKFUHpmkDrEcigOE00o",
-        "AIzaSyAiSR_exmQehaC7Q0HPnuQUhr0S9jCtQFs",
-        "AIzaSyAVhlHdikARNiTbyJLEBtExGBJPTCWucOg",
-        "AIzaSyBt9wnZwb6gGm13gXIDLAs01JuF3PoSnBw",
-    ]
+    api_key_google_list = []  # Configure GOOGLE_API_KEYS in the environment.
 
     #phase5_file = "pipeline_results/phase5.txt"
     #code_list = load_codes_from_file(phase5_file)

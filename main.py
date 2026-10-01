@@ -34,20 +34,8 @@ def plan_(index : int,output_dir: str):
     
     #print(data[0])
 
-    api_key_google_list =[
-        "AIzaSyBXC7krDh4mvI4VPKFUHpmkDrEcigOE00o",
-        "AIzaSyAiSR_exmQehaC7Q0HPnuQUhr0S9jCtQFs",
-        "AIzaSyAVhlHdikARNiTbyJLEBtExGBJPTCWucOg",
-        "AIzaSyBt9wnZwb6gGm13gXIDLAs01JuF3PoSnBw",
-    ]
-    api_key_ollama_list =[
-        "66b7ca3198584136a86660733672b5ab.NO-wYz2AeqN7Bf0rRSrLkb0H",
-        "3423a52360bf468588b6c80e6957ea1d.nQBGpbmZzCvwWysfb6ORjbGd",
-        "77408cf3484946d8bb8cf37220ad2721.837tfoOLJmV3FEka43ozQlZF",
-        "9c75046d041a4dca811fd2eaaf3e5696.RH4yyGnyj-qwU8BLCRSr4j7P"
-
-
-    ]
+    api_key_google_list = []  # Configure GOOGLE_API_KEYS in the environment.
+    api_key_ollama_list = []  # Configure OLLAMA_API_KEYS in the environment.
     list_files=[
         "planning_results1.json",
         "planning_results2.json",
@@ -68,12 +56,7 @@ def plan_(index : int,output_dir: str):
     print("faze3:planning")
 
         
-api_key_google_list =[
-        "AIzaSyBXC7krDh4mvI4VPKFUHpmkDrEcigOE00o",
-        "AIzaSyAiSR_exmQehaC7Q0HPnuQUhr0S9jCtQFs",
-        "AIzaSyAVhlHdikARNiTbyJLEBtExGBJPTCWucOg",
-        "AIzaSyBt9wnZwb6gGm13gXIDLAs01JuF3PoSnBw",
-    ]
+api_key_google_list = []  # Configure GOOGLE_API_KEYS in the environment.
             
 import json
 #read the ioi_multiple_choice_problems.json file
@@ -360,20 +343,8 @@ Find an optimal routing plan that:
 
     """
     output_dir="Amirhosein_nadeerali"
-    api_key_google_list =[
-        "AIzaSyBXC7krDh4mvI4VPKFUHpmkDrEcigOE00o",
-        "AIzaSyAiSR_exmQehaC7Q0HPnuQUhr0S9jCtQFs",
-        "AIzaSyAVhlHdikARNiTbyJLEBtExGBJPTCWucOg",
-        "AIzaSyBt9wnZwb6gGm13gXIDLAs01JuF3PoSnBw",
-    ]
-    api_key_ollama_list =[
-        "66b7ca3198584136a86660733672b5ab.NO-wYz2AeqN7Bf0rRSrLkb0H",
-        "3423a52360bf468588b6c80e6957ea1d.nQBGpbmZzCvwWysfb6ORjbGd",
-        "77408cf3484946d8bb8cf37220ad2721.837tfoOLJmV3FEka43ozQlZF",
-        "9c75046d041a4dca811fd2eaaf3e5696.RH4yyGnyj-qwU8BLCRSr4j7P"
-
-
-    ]
+    api_key_google_list = []  # Configure GOOGLE_API_KEYS in the environment.
+    api_key_ollama_list = []  # Configure OLLAMA_API_KEYS in the environment.
     list_files=[
         "planning_results1.json",
         "planning_results2.json",

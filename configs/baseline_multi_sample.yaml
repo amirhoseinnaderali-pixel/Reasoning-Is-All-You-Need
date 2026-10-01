@@ -1,0 +1,11 @@
+experiment_id: null
+method: multi_sample
+output_dir: results
+dataset:
+  path: ioi_multi_view.json
+  problem_index: 0
+samples: 8
+verification:
+  timeout_s: 5
+  memory_mb: 512
+  max_tests: null

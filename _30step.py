@@ -40,12 +40,7 @@ from cpp_pipe import (
 )
 
 # API keys
-api_key_google_list = [
-    "AIzaSyBXC7krDh4mvI4VPKFUHpmkDrEcigOE00o",
-    "AIzaSyAiSR_exmQehaC7Q0HPnuQUhr0S9jCtQFs",
-    "AIzaSyAVhlHdikARNiTbyJLEBtExGBJPTCWucOg",
-    "AIzaSyBt9wnZwb6gGm13gXIDLAs01JuF3PoSnBw",
-]    
+api_key_google_list = []  # Configure GOOGLE_API_KEYS in the environment.    
 
 async def execute_and_fix(
     code: str,

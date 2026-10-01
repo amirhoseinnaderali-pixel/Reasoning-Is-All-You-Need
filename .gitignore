@@ -1,0 +1,23 @@
+# Credentials and local environments
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Generated experiment outputs
+results/
+experiments/runs/
+pipeline_results*/
+*.log
+*.tmp
+
+# Local binaries / compiler artifacts
+*.out
+a.out
+*.exe

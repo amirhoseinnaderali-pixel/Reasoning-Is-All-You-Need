@@ -17,12 +17,7 @@ from datetime import datetime
 
 from ollama_client import chat_completion
 from google import genai
-api_key_google_list =[
-        "AIzaSyBXC7krDh4mvI4VPKFUHpmkDrEcigOE00o",
-        "AIzaSyAiSR_exmQehaC7Q0HPnuQUhr0S9jCtQFs",
-        "AIzaSyAVhlHdikARNiTbyJLEBtExGBJPTCWucOg",
-        "AIzaSyBt9wnZwb6gGm13gXIDLAs01JuF3PoSnBw",
-    ]
+api_key_google_list = []  # Configure GOOGLE_API_KEYS in the environment.
 
 
 def call_model(model: str, prompt: str,api_key_google: str,api_key_ollama: str, timeout: int = 120) -> dict:
@@ -372,20 +367,8 @@ class CppSandbox:
        
 
     
-_GOOGLE_API_KEY = (
-    
-        "AIzaSyD4-OYglZP9aqgtvLiJ5zLdWWmWMYMWENQ", 
-        "AIzaSyAcuYSRxIu7Ikq5oaiYSp85ZhD6ned5GWI",
-        "AIzaSyB3geZNufz1qM92gAxJpIzK0M3FOyzoStk",
-        "AIzaSyDANYHSgMUfyzNNG94L2RaL8kAHh4dkvTM",
-)
-_OLLAMA_API_KEY = (
-    "66b7ca3198584136a86660733672b5ab.NO-wYz2AeqN7Bf0rRSrLkb0H",
-        "3423a52360bf468588b6c80e6957ea1d.nQBGpbmZzCvwWysfb6ORjbGd",
-        "77408cf3484946d8bb8cf37220ad2721.837tfoOLJmV3FEka43ozQlZF",
-        "9c75046d041a4dca811fd2eaaf3e5696.RH4yyGnyj-qwU8BLCRSr4j7P"
-
-)
+_GOOGLE_API_KEY = ()  # Configure GOOGLE_API_KEYS in the environment.
+_OLLAMA_API_KEY = ()  # Configure OLLAMA_API_KEYS in the environment.
 
 
 def _build_model_configs() -> List[Dict[str, str]]:
