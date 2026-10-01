@@ -8,6 +8,7 @@ from cpp_pipe import optimizer
 import asyncio  
 from asyncio import run
 from time import sleep
+from cpp_pipe import CppSandbox
 def phaze1_planning(problem: str,api_key_google_list: list,api_key_ollama_list: list,list_files: list,output_dir: str):
     planning_results_list=[]
     planning_results_list.append(planning(problem,api_key_google_list[0],api_key_ollama_list[0],list_files[0],previous_planning_results=planning_results_list,output_dir=output_dir))
@@ -34,20 +35,12 @@ def plan_(index : int,output_dir: str):
     
     #print(data[0])
 
-    api_key_google_list =[
-        "AIzaSyBXC7krDh4mvI4VPKFUHpmkDrEcigOE00o",
-        "AIzaSyAiSR_exmQehaC7Q0HPnuQUhr0S9jCtQFs",
-        "AIzaSyAVhlHdikARNiTbyJLEBtExGBJPTCWucOg",
-        "AIzaSyBt9wnZwb6gGm13gXIDLAs01JuF3PoSnBw",
-    ]
-    api_key_ollama_list =[
-        "66b7ca3198584136a86660733672b5ab.NO-wYz2AeqN7Bf0rRSrLkb0H",
-        "3423a52360bf468588b6c80e6957ea1d.nQBGpbmZzCvwWysfb6ORjbGd",
-        "77408cf3484946d8bb8cf37220ad2721.837tfoOLJmV3FEka43ozQlZF",
-        "9c75046d041a4dca811fd2eaaf3e5696.RH4yyGnyj-qwU8BLCRSr4j7P"
-
-
-    ]
+    api_key_google_list = [
+    key.strip() for key in os.getenv("GOOGLE_API_KEYS", "").split(",") if key.strip()
+]
+    api_key_ollama_list = [
+    key.strip() for key in os.getenv("OLLAMA_API_KEYS", "").split(",") if key.strip()
+]
     list_files=[
         "planning_results1.json",
         "planning_results2.json",
@@ -68,12 +61,9 @@ def plan_(index : int,output_dir: str):
     print("faze3:planning")
 
         
-api_key_google_list =[
-        "AIzaSyBXC7krDh4mvI4VPKFUHpmkDrEcigOE00o",
-        "AIzaSyAiSR_exmQehaC7Q0HPnuQUhr0S9jCtQFs",
-        "AIzaSyAVhlHdikARNiTbyJLEBtExGBJPTCWucOg",
-        "AIzaSyBt9wnZwb6gGm13gXIDLAs01JuF3PoSnBw",
-    ]
+api_key_google_list = [
+    key.strip() for key in os.getenv("GOOGLE_API_KEYS", "").split(",") if key.strip()
+]
             
 import json
 #read the ioi_multiple_choice_problems.json file
@@ -128,7 +118,7 @@ async def plan_to_code(plan: str, problem: str, output_dir: str,tests: list,spee
             f.write("\n\n")
     
     #code=phase5_result.code
-    sleep(100)
+    sleep(float(os.getenv("PIPELINE_STAGE_DELAY_SECONDS", "0")))
     optimizer_result = await optimizerrr(phase5_result.code,output_dir=output_dir)
 
     # Handle empty optimizer_result
@@ -140,13 +130,49 @@ async def plan_to_code(plan: str, problem: str, output_dir: str,tests: list,spee
             print("❌ Error: No code available to proceed with _30step")
             return
 
-    final_result = await _30step(optimizer_result[0], tests,output_dir=output_dir)
-    print(final_result)
+    selected_code, selection = await select_best_code_by_tests(optimizer_result, tests, output_dir)
+    final_result = await _30step(selected_code, tests, output_dir=output_dir)
+    print({"candidate_selection": selection, "final_result": final_result})
    
 
     #all_results =  await _30step(best_code, tests)
 
-async def optimizerrr(code_list: list,output_dir: str): 
+async 
+
+async def select_best_code_by_tests(candidate_codes: list, tests: list, output_dir: str):
+    evaluations = []
+    for idx, candidate in enumerate(candidate_codes):
+        passed = 0
+        compile_ok = False
+        test_rows = []
+        try:
+            with CppSandbox(timeout=5, memory_limit_mb=512) as sandbox:
+                compile_ok, compile_error = sandbox.compile(candidate)
+                if compile_ok:
+                    for test_idx, test in enumerate(tests, 1):
+                        result = sandbox.execute(test.get("input", ""))
+                        actual = result.get("output", "").strip()
+                        expected = str(test.get("expected_output", "")).strip()
+                        ok = actual == expected
+                        passed += int(ok)
+                        test_rows.append({"test_index": test_idx, "passed": ok, "expected": expected, "actual": actual, "error": result.get("error", "")})
+                else:
+                    test_rows.append({"test_index": 0, "passed": False, "expected": "", "actual": "", "error": compile_error})
+        except Exception as exc:
+            test_rows.append({"test_index": 0, "passed": False, "expected": "", "actual": "", "error": str(exc)})
+        evaluations.append({"candidate_index": idx, "compile_ok": compile_ok, "passed_tests": passed, "total_tests": len(tests), "all_passed": passed == len(tests) and len(tests) > 0, "tests": test_rows})
+
+    if not evaluations:
+        return "", []
+
+    best_index = max(range(len(evaluations)), key=lambda i: (evaluations[i]["passed_tests"], int(evaluations[i]["compile_ok"]), -evaluations[i]["candidate_index"]))
+    selected = candidate_codes[evaluations[best_index]["candidate_index"]]
+    os.makedirs(output_dir, exist_ok=True)
+    with open(os.path.join(output_dir, "candidate_selection.json"), "w", encoding="utf-8") as f:
+        json.dump({"selection_rule": "objective execution-test pass count", "evaluations": evaluations, "selected_candidate_index": evaluations[best_index]["candidate_index"]}, f, indent=2)
+    return selected, evaluations
+
+def optimizerrr(code_list: list,output_dir: str): 
     best_code = await optimizer(code_list,output_dir=output_dir)
     return best_code
 
@@ -181,7 +207,7 @@ def  test_pipeline(index: int):
         with open(output_dir+"/planning_results3.json", "r") as f:
             plans = json.load(f)
         print("start code generation")
-        sleep(100)
+        sleep(float(os.getenv("PIPELINE_STAGE_DELAY_SECONDS", "0")))
         plan=plans[0]
         problem=data[index]["algorithm_view"]
         code=[]
