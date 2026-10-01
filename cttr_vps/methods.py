@@ -87,13 +87,14 @@ async def generate_samples(
     return candidates, events
 
 
-async def run_single_pass(plan: str, problem: str, tests: list[dict[str, Any]], config: dict[str, Any], output_dir: str) -> dict[str, Any]:
+async def run_single_pass(plan: str, problem: dict[str, Any], tests: list[dict[str, Any]], config: dict[str, Any], output_dir: str) -> dict[str, Any]:
     google_key = require_google_api_key()
     ollama_keys = get_ollama_api_keys()
     model = config.get("model", "gemini-2.5-flash")
+    problem_text = json.dumps(problem.get("implementation_view", problem), ensure_ascii=False, indent=2)
     code, event = await generate_code(
-        plan,
-        problem,
+        "",
+        problem_text,
         model_name=model,
         api_key_google=google_key if model.startswith("gemini-") else "",
         api_key_ollama=ollama_keys[0] if ollama_keys else "",
@@ -102,13 +103,14 @@ async def run_single_pass(plan: str, problem: str, tests: list[dict[str, Any]], 
     return {"code": code, "candidates": [code] if code else [], "evaluations": [evaluation], "events": [getattr(event, "__dict__", {})], "model_calls": 1}
 
 
-async def run_multi_sample(plan: str, problem: str, tests: list[dict[str, Any]], config: dict[str, Any], output_dir: str) -> dict[str, Any]:
+async def run_multi_sample(plan: str, problem: dict[str, Any], tests: list[dict[str, Any]], config: dict[str, Any], output_dir: str) -> dict[str, Any]:
     google_key = require_google_api_key()
     ollama_keys = get_ollama_api_keys()
     count = int(config.get("samples", 8))
+    problem_text = json.dumps(problem.get("implementation_view", problem), ensure_ascii=False, indent=2)
     candidates, events = await generate_samples(
-        plan,
-        problem,
+        "",
+        problem_text,
         count=count,
         api_key_google=google_key,
         api_key_ollama=ollama_keys[0] if ollama_keys else "",
@@ -158,25 +160,27 @@ async def run_multi_sample(plan: str, problem: str, tests: list[dict[str, Any]],
     return {"code": candidates[selected] if selected is not None else "", "candidates": candidates, "evaluations": evaluations, "events": events, "model_calls": count}
 
 
-async def run_self_refinement(plan: str, problem: str, tests: list[dict[str, Any]], config: dict[str, Any], output_dir: str) -> dict[str, Any]:
+async def run_self_refinement(plan: str, problem: dict[str, Any], tests: list[dict[str, Any]], config: dict[str, Any], output_dir: str) -> dict[str, Any]:
     key = require_google_api_key()
     model = config.get("model", "gemini-2.5-flash")
+    problem_text = json.dumps(problem.get("implementation_view", problem), ensure_ascii=False, indent=2)
     rounds = int(config.get("refinement_rounds", 3))
     code = ""
     events: list[dict[str, Any]] = []
     for i in range(rounds + 1):
-        new_code, metrics = await generate_code(plan, problem, best_code=code, model_name=model, api_key_google=key, iteration=i + 1)
+        new_code, metrics = await generate_code("", problem_text, best_code=code, model_name=model, api_key_google=key, iteration=i + 1)
         code = new_code or code
         events.append({"round": i + 1, "model": model, "metrics": getattr(metrics, "__dict__", {})})
     evaluation = evaluate_candidate(code, tests, timeout_s=float(config.get("verification", {}).get("timeout_s", 5)), memory_limit_mb=int(config.get("verification", {}).get("memory_mb", 512)), max_tests=config.get("verification", {}).get("max_tests"))
     return {"code": code, "candidates": [code] if code else [], "evaluations": [evaluation], "events": events, "model_calls": rounds + 1}
 
 
-async def run_execution_refinement(plan: str, problem: str, tests: list[dict[str, Any]], config: dict[str, Any], output_dir: str) -> dict[str, Any]:
+async def run_execution_refinement(plan: str, problem: dict[str, Any], tests: list[dict[str, Any]], config: dict[str, Any], output_dir: str) -> dict[str, Any]:
     key = require_google_api_key()
     model = config.get("model", "gemini-2.5-flash")
+    problem_text = json.dumps(problem.get("implementation_view", problem), ensure_ascii=False, indent=2)
     rounds = int(config.get("refinement_rounds", 5))
-    code, _ = await generate_code(plan, problem, model_name=model, api_key_google=key)
+    code, _ = await generate_code("", problem_text, model_name=model, api_key_google=key)
     events: list[dict[str, Any]] = []
     calls = 1
     for i in range(rounds):
