@@ -1,5 +1,5 @@
 IMPLEMENTATION_MODELS = [
-    "gpt-oss:120b-cloud",
+from secrets_config import GOOGLE_API_KEYS\n    "gpt-oss:120b-cloud",
     "gemini-2.5-flash",
     "glm-4.6:cloud",
     "minimax-m2:cloud",
@@ -40,14 +40,7 @@ from cpp_pipe import (
 )
 
 # API keys
-api_key_google_list = [
-    "AIzaSyBXC7krDh4mvI4VPKFUHpmkDrEcigOE00o",
-    "AIzaSyAiSR_exmQehaC7Q0HPnuQUhr0S9jCtQFs",
-    "AIzaSyAVhlHdikARNiTbyJLEBtExGBJPTCWucOg",
-    "AIzaSyBt9wnZwb6gGm13gXIDLAs01JuF3PoSnBw",
-]    
-
-async def execute_and_fix(
+api_key_google_list = GOOGLE_API_KEYS\nasync def execute_and_fix(
     code: str,
     problem: str,
     tests: List[Dict],
