@@ -39,100 +39,10 @@ from cpp_pipe import (
     _truncate_message
 )
 
-# API keys
+# API keys are supplied through the environment. Never commit credentials.
 api_key_google_list = [
-    "AIzaSyBXC7krDh4mvI4VPKFUHpmkDrEcigOE00o",
-    "AIzaSyAiSR_exmQehaC7Q0HPnuQUhr0S9jCtQFs",
-    "AIzaSyAVhlHdikARNiTbyJLEBtExGBJPTCWucOg",
-    "AIzaSyBt9wnZwb6gGm13gXIDLAs01JuF3PoSnBw",
-]    
-
-async def execute_and_fix(
-    code: str,
-    problem: str,
-    tests: List[Dict],
-    model_config: Dict,
-    iteration: int
-) -> Tuple[str, ExecutionMetrics]:
-    """
-    Execute code, capture errors, and fix with weak models
-    
-    Args:
-        code: Current C++ code
-        problem: Problem description
-        tests: List of test cases
-        model_config: Model configuration
-        iteration: Current iteration number
-        
-    Returns:
-        (fixed_code, metrics)
-    """
-    start_time = time.time()
-    
-    # Try to compile and execute
-    with CppSandbox(timeout=5, memory_limit_mb=512) as sandbox:
-        # Compile
-        compile_success, compile_error = sandbox.compile(code)
-        
-        if not compile_success:
-            # Code doesn't compile - ask model to fix
-            system_prompt = "You are a C++ expert. Fix compilation errors."
-            
-            user_prompt = f"""This C++ code has compilation errors:
-
-```cpp
-{code}
-```
-
-Compilation Error:
-{compile_error}
-
-Fix the compilation errors and return the corrected code.
-Return ONLY the fixed C++ code in ```cpp blocks."""
-            
-            try:
-                response = await call_model_with_retry____________________________________________(
-                    provider=model_config["provider"],
-                    model=model_config["model"],
-                    prompt=user_prompt,
-                    system_prompt=system_prompt,
-                    temperature=0.3
-                )
-                
-                fixed_code = extract_code_from_response(response)
-                
-                metrics = ExecutionMetrics(
-                    success=False,
-                    output="",
-                    error=compile_error,
-                    time_ms=(time.time() - start_time) * 1000,
-                    memory_mb=0.0,
-                    timeout=False,
-                    iteration=iteration,
-                    model_used=model_config["name"],
-                    test_passed=False,
-                    timestamp=datetime.now().isoformat()
-                )
-                
-                return fixed_code, metrics
-                
-            except Exception as e:
-                metrics = ExecutionMetrics(
-                    success=False,
-                    output="",
-                    error=f"Model error: {str(e)}",
-                    time_ms=(time.time() - start_time) * 1000,
-                    memory_mb=0.0,
-                    timeout=False,
-                    iteration=iteration,
-                    model_used=model_config["name"],
-                    test_passed=False,
-                    timestamp=datetime.now().isoformat()
-                )
-                return code, metrics
-        
-        # Code compiles - run tests
-        test_results = []
+    key.strip() for key in os.getenv("GOOGLE_API_KEYS", "").split(",") if key.strip()
+]
         all_passed = True
         
         for test in tests[:3]:  # Run first 3 tests
