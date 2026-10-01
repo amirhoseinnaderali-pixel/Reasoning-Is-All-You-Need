@@ -242,8 +242,10 @@ Output format:
 # مثال استفاده
 async def optimizer(code_list: List[str],output_dir: str):
     # خواندن کدها از فایل phase5.txt
-
-
+    from cttr_vps.config import get_google_api_keys
+    api_key_google_list = get_google_api_keys()
+    if not api_key_google_list:
+        raise RuntimeError("Optimizer requires GOOGLE_API_KEY or GOOGLE_API_KEYS.")
 
     api_key_google_list = []  # Configure GOOGLE_API_KEYS in the environment.
 
