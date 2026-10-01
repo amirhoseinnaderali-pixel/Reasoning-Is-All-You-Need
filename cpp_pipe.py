@@ -415,53 +415,68 @@ async def call_model_with_retry____________________________________________(
     model: str,
     prompt: str,
     system_prompt: str = "",
+async def call_model_with_retry____________________________________________(
+    provider: str,
+    model: str,
+    prompt: str,
+    system_prompt: str = "",
     max_retries: int = 3,
     temperature: float = 0.7,
-    api_key_google: str = ""
+    api_key_google: str = "",
+    api_key_ollama: str = ""
 ) -> str:
-  
-    del provider  # retained for backwards compatibility
-    del temperature
+    """Call a configured provider without embedding credentials in source."""
+    del temperature  # Legacy prompt path does not currently forward temperature.
 
     combined_prompt = prompt
     if system_prompt:
         combined_prompt = f"{system_prompt.strip()}\n\n{prompt}"
 
+    if not api_key_google:
+        try:
+            from cttr_vps.config import get_google_api_keys
+            keys = get_google_api_keys()
+            if keys:
+                api_key_google = keys[0]
+        except Exception:
+            pass
+
+    if not api_key_ollama:
+        try:
+            from cttr_vps.config import get_ollama_api_keys
+            keys = get_ollama_api_keys()
+            if keys:
+                api_key_ollama = keys[0]
+        except Exception:
+            pass
+
     loop = asyncio.get_running_loop()
 
     async def _invoke() -> dict:
-        # Use first API key as placeholder (call_model handles rotation internally)
-        ollama_key = _OLLAMA_API_KEY[0] if _OLLAMA_API_KEY else ""
         return await loop.run_in_executor(
             None,
-            lambda: call_model(model, combined_prompt, api_key_google=api_key_google,api_key_ollama="") 
+            lambda: call_model(
+                model,
+                combined_prompt,
+                api_key_google=api_key_google,
+                api_key_ollama=api_key_ollama,
+            )
         )
 
     last_error: str | None = None
-    for attempt in range(1):
+    for attempt in range(max_retries):
         try:
             result = await _invoke()
             if isinstance(result, dict) and result.get("success"):
                 return result.get("output", "")
-            error_message = ""
-            if isinstance(result, dict):
-                error_message = result.get("error") or ""
-            if not error_message:
-                error_message = "Model call failed without an explicit error message."
-            last_error = error_message
-        except Exception as exc:  # noqa: BLE001 - propagate meaningful failure
+            error_message = result.get("error", "") if isinstance(result, dict) else ""
+            last_error = error_message or "Model call failed without an explicit error message."
+        except Exception as exc:
             last_error = str(exc)
         if attempt < max_retries - 1:
-            # Reduced delay: 0.5s, 1s instead of 1s, 2s, 4s
             await asyncio.sleep(0.5 * (attempt + 1))
 
     raise RuntimeError(last_error or "Model call failed after retries.")
-
-
-def extract_code_from_response(response: str) -> str:
-    """Extract C++ code from model response"""
-    # Look for code blocks
-    if "```cpp" in response:
         parts = response.split("```cpp")
         if len(parts) > 1:
             code = parts[1].split("```")[0]
