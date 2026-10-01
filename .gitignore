@@ -4,3 +4,7 @@ __pycache__/
 .venv/
 venv/
 pipeline_results*/
+
+results/
+experiments/runs/
+*.log
