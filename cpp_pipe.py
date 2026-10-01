@@ -431,7 +431,8 @@ async def call_model_with_retry____________________________________________(
     system_prompt: str = "",
     max_retries: int = 3,
     temperature: float = 0.7,
-    api_key_google: str = ""
+    api_key_google: str = "",
+    api_key_ollama: str = ""
 ) -> str:
   
     del provider  # retained for backwards compatibility
@@ -443,7 +444,8 @@ async def call_model_with_retry____________________________________________(
 
     if not api_key_google and model.startswith("gemini-"):
         api_key_google = os.getenv("GOOGLE_API_KEY", "") or os.getenv("GOOGLE_API_KEYS", "").split(",")[0].strip()
-    api_key_ollama = os.getenv("OLLAMA_API_KEY", "") or os.getenv("OLLAMA_API_KEYS", "").split(",")[0].strip()
+    if not api_key_ollama:
+        api_key_ollama = os.getenv("OLLAMA_API_KEY", "") or os.getenv("OLLAMA_API_KEYS", "").split(",")[0].strip()
 
     loop = asyncio.get_running_loop()
 
@@ -557,7 +559,8 @@ Return ONLY the C++ code, wrapped in ```cpp code blocks."""
             prompt=user_prompt,
             system_prompt=system_prompt,
             temperature=0.7,
-            api_key_google=api_key_google
+            api_key_google=api_key_google,
+            api_key_ollama=api_key_ollama,
         )
         
         code = extract_code_from_response(response)
