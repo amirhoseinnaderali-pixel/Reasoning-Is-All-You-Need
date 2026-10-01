@@ -17,7 +17,7 @@ def available_models() -> list[str]:
     return [item["name"] for item in ModelConfig.STRONG_MODELS]
 
 
-async def generate_code(plan: str, problem: str, model_name: str, iteration: int = 1, api_key_google: str = ""):
+async def generate_code(plan: str, problem: str, model_name: str, iteration: int = 1, api_key_google: str = "", api_key_ollama: str = ""):
     from cpp_pipe import plan_to_code
     return await plan_to_code(
         plan,
@@ -26,6 +26,7 @@ async def generate_code(plan: str, problem: str, model_name: str, iteration: int
         model_config(model_name),
         iteration,
         api_key_google=api_key_google,
+        api_key_ollama=api_key_ollama,
     )
 
 
