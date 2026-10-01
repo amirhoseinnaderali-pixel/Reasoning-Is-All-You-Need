@@ -1,0 +1,9 @@
+method: multi_sample
+samples: 8
+output_dir: results
+dataset:
+  path: ioi_multi_view.json
+  problem_index: 0
+verification:
+  timeout_s: 5
+  memory_mb: 512
