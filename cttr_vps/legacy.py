@@ -52,7 +52,7 @@ async def debug_code(
         code,
         tests,
         get_model_config(model_name),
-        iteration=1,
+        step_num=1,
         problem=problem,
         api_key_google=api_key_google,
     )
