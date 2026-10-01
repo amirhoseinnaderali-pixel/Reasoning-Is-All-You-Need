@@ -61,12 +61,9 @@ def plan_(index : int,output_dir: str):
     print("faze3:planning")
 
         
-api_key_google_list =[
-        "AIzaSyBXC7krDh4mvI4VPKFUHpmkDrEcigOE00o",
-        "AIzaSyAiSR_exmQehaC7Q0HPnuQUhr0S9jCtQFs",
-        "AIzaSyAVhlHdikARNiTbyJLEBtExGBJPTCWucOg",
-        "AIzaSyBt9wnZwb6gGm13gXIDLAs01JuF3PoSnBw",
-    ]
+api_key_google_list = [
+    key.strip() for key in os.getenv("GOOGLE_API_KEYS", "").split(",") if key.strip()
+]
             
 import json
 #read the ioi_multiple_choice_problems.json file
