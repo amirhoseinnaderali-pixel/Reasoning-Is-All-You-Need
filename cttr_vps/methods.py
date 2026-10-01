@@ -62,11 +62,12 @@ async def run_multi_sample(problem: dict, tests: list[dict], config: dict, outpu
 async def run_self_refine(problem: dict, tests: list[dict], config: dict, output_dir: str) -> dict:
     model = str(config.get("model", "gemini-2.5-flash"))
     key = google_keys()[0] if model.startswith("gemini-") and google_keys() else ""
+    ollama_key = ollama_keys()[0] if not model.startswith("gemini-") and ollama_keys() else ""
     rounds = int(config.get("refinement_rounds", 3))
     code = ""
     events = []
     for i in range(rounds + 1):
-        code, metrics = await generate_code("", problem_text(problem), model, iteration=i + 1, api_key_google=key)
+        code, metrics = await generate_code("", problem_text(problem), model, iteration=i + 1, api_key_google=key, api_key_ollama=ollama_key)
         events.append({"round": i + 1, "metrics": getattr(metrics, "__dict__", {})})
     timeout_s, memory_mb = verify_config(config)
     evaluation = evaluate_candidate(code, tests, timeout_s, memory_mb)
@@ -76,8 +77,9 @@ async def run_self_refine(problem: dict, tests: list[dict], config: dict, output
 async def run_execution_refine(problem: dict, tests: list[dict], config: dict, output_dir: str) -> dict:
     model = str(config.get("model", "gemini-2.5-flash"))
     key = google_keys()[0] if model.startswith("gemini-") and google_keys() else ""
+    ollama_key = ollama_keys()[0] if not model.startswith("gemini-") and ollama_keys() else ""
     rounds = int(config.get("refinement_rounds", 5))
-    code, _ = await generate_code("", problem_text(problem), model, api_key_google=key)
+    code, _ = await generate_code("", problem_text(problem), model, api_key_google=key, api_key_ollama=ollama_key)
     events = []
     calls = 1
     timeout_s, memory_mb = verify_config(config)
