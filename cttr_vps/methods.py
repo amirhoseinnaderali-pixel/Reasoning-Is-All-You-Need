@@ -24,7 +24,7 @@ async def run_single_pass(problem: dict, tests: list[dict], config: dict, output
     model = str(models[0])
     gkeys, okeys = google_keys(), ollama_keys()
     key = gkeys[0] if model.startswith("gemini-") and gkeys else (okeys[0] if okeys else "")
-    code, metrics = await generate_code("", problem_text(problem), model, api_key_google=key)
+    code, metrics = await generate_code("", problem_text(problem), model, api_key_google=key, api_key_ollama=(ollama_keys()[0] if not model.startswith("gemini-") and ollama_keys() else ""))
     timeout_s, memory_mb = verify_config(config)
     evaluation = evaluate_candidate(code, tests, timeout_s, memory_mb) if code else {"compiled": False, "tests_passed": 0, "tests_failed": len(tests), "total_tests": len(tests), "all_passed": False, "error_type": "generation_failed"}
     return {"code": code, "candidates": [code] if code else [], "evaluations": [evaluation], "model_calls": 1, "events": [getattr(metrics, "__dict__", {})], "models": [model]}
@@ -39,7 +39,7 @@ async def run_multi_sample(problem: dict, tests: list[dict], config: dict, outpu
     tasks = []
     for name in models:
         key = gkeys[0] if str(name).startswith("gemini-") and gkeys else (okeys[0] if okeys else "")
-        tasks.append(generate_code("", problem_text(problem), str(name), api_key_google=key))
+        tasks.append(generate_code("", problem_text(problem), str(name), api_key_google=key, api_key_ollama=(okeys[0] if not str(name).startswith("gemini-") and okeys else "")))
     outputs = await asyncio.gather(*tasks, return_exceptions=True)
 
     candidates, events, used_models = [], [], []
@@ -143,7 +143,7 @@ async def run_cttr_vps(problem: dict, tests: list[dict], config: dict, output_di
         tasks = []
         for index, model in enumerate(models):
             key = gkeys[round_id % len(gkeys)] if model.startswith("gemini-") else ""
-            tasks.append(generate_code(plan, json.dumps(problem.get("algorithm_view", problem), ensure_ascii=False, indent=2), model, iteration=index + 1, api_key_google=key))
+            tasks.append(generate_code(plan, json.dumps(problem.get("algorithm_view", problem), ensure_ascii=False, indent=2), model, iteration=index + 1, api_key_google=key, api_key_ollama=(okeys[round_id % len(okeys)] if not model.startswith("gemini-") and okeys else "")))
         outputs = await asyncio.gather(*tasks, return_exceptions=True)
         round_candidates = []
         events = []
