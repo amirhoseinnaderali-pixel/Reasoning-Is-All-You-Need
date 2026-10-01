@@ -1,0 +1,4 @@
+candidate_budgets: [1, 5, 20]
+debug_iterations: [0, 5, 30]
+pipeline_stage_delay_seconds: 0
+primary_metric: objective_test_pass_rate
