@@ -8,6 +8,7 @@ from cpp_pipe import optimizer
 import asyncio  
 from asyncio import run
 from time import sleep
+from cpp_pipe import CppSandbox
 def phaze1_planning(problem: str,api_key_google_list: list,api_key_ollama_list: list,list_files: list,output_dir: str):
     planning_results_list=[]
     planning_results_list.append(planning(problem,api_key_google_list[0],api_key_ollama_list[0],list_files[0],previous_planning_results=planning_results_list,output_dir=output_dir))
@@ -132,13 +133,49 @@ async def plan_to_code(plan: str, problem: str, output_dir: str,tests: list,spee
             print("❌ Error: No code available to proceed with _30step")
             return
 
-    final_result = await _30step(optimizer_result[0], tests,output_dir=output_dir)
-    print(final_result)
+    selected_code, selection = await select_best_code_by_tests(optimizer_result, tests, output_dir)
+    final_result = await _30step(selected_code, tests, output_dir=output_dir)
+    print({"candidate_selection": selection, "final_result": final_result})
    
 
     #all_results =  await _30step(best_code, tests)
 
-async def optimizerrr(code_list: list,output_dir: str): 
+async 
+
+async def select_best_code_by_tests(candidate_codes: list, tests: list, output_dir: str):
+    evaluations = []
+    for idx, candidate in enumerate(candidate_codes):
+        passed = 0
+        compile_ok = False
+        test_rows = []
+        try:
+            with CppSandbox(timeout=5, memory_limit_mb=512) as sandbox:
+                compile_ok, compile_error = sandbox.compile(candidate)
+                if compile_ok:
+                    for test_idx, test in enumerate(tests, 1):
+                        result = sandbox.execute(test.get("input", ""))
+                        actual = result.get("output", "").strip()
+                        expected = str(test.get("expected_output", "")).strip()
+                        ok = actual == expected
+                        passed += int(ok)
+                        test_rows.append({"test_index": test_idx, "passed": ok, "expected": expected, "actual": actual, "error": result.get("error", "")})
+                else:
+                    test_rows.append({"test_index": 0, "passed": False, "expected": "", "actual": "", "error": compile_error})
+        except Exception as exc:
+            test_rows.append({"test_index": 0, "passed": False, "expected": "", "actual": "", "error": str(exc)})
+        evaluations.append({"candidate_index": idx, "compile_ok": compile_ok, "passed_tests": passed, "total_tests": len(tests), "all_passed": passed == len(tests) and len(tests) > 0, "tests": test_rows})
+
+    if not evaluations:
+        return "", []
+
+    best_index = max(range(len(evaluations)), key=lambda i: (evaluations[i]["passed_tests"], int(evaluations[i]["compile_ok"]), -evaluations[i]["candidate_index"]))
+    selected = candidate_codes[evaluations[best_index]["candidate_index"]]
+    os.makedirs(output_dir, exist_ok=True)
+    with open(os.path.join(output_dir, "candidate_selection.json"), "w", encoding="utf-8") as f:
+        json.dump({"selection_rule": "objective execution-test pass count", "evaluations": evaluations, "selected_candidate_index": evaluations[best_index]["candidate_index"]}, f, indent=2)
+    return selected, evaluations
+
+def optimizerrr(code_list: list,output_dir: str): 
     best_code = await optimizer(code_list,output_dir=output_dir)
     return best_code
 
