@@ -7,9 +7,9 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from .config import get_google_api_keys, get_ollama_api_keys, require_google_api_key, require_ollama_api_key
+from .config import get_google_api_keys, get_ollama_api_keys, require_google_api_key
 from .evaluation import evaluate_candidate, metric_snapshot, select_best_verified
-from .legacy import debug_all_models, debug_code, generate_code, get_model_config, optimize_codes, run_planning_round, strong_models
+from .legacy import debug_all_models, debug_code, generate_code, optimize_codes, run_planning_round, strong_models
 
 
 def _normalise_label(value: str) -> str:
@@ -18,7 +18,7 @@ def _normalise_label(value: str) -> str:
 
 def select_plan(planning_results: list[dict[str, Any]]) -> tuple[str, dict[str, Any]]:
     """Select a representative plan using an explicit modal-label + detail rule."""
-    successful = [item for item in planning_results if item.get("success") and item.get("algorithm")]
+    successful = [item for item in planning_results if item.get("algorithm")]
     if not successful:
         raise RuntimeError("No successful planning result is available.")
 
@@ -53,6 +53,7 @@ async def generate_samples(
     count: int = 1,
     best_code: str = "",
     api_key_google: str = "",
+    api_key_ollama: str = "",
     speed: int = 1,
     memory: int = 512,
 ) -> tuple[list[str], list[dict[str, Any]]]:
@@ -63,7 +64,8 @@ async def generate_samples(
             problem,
             best_code=best_code,
             model_name=name,
-            api_key_google=api_key_google,
+            api_key_google=api_key_google if name.startswith("gemini-") else "",
+            api_key_ollama=api_key_ollama if not name.startswith("gemini-") else "",
             iteration=i + 1,
             speed=speed,
             memory=memory,
@@ -72,6 +74,51 @@ async def generate_samples(
     ]
     outputs = await asyncio.gather(*tasks, return_exceptions=True)
     candidates: list[str] = []
+    events: list[dict[str, Any]] = []
+    for i, output in enumerate(outputs):
+        if isinstance(output, Exception):
+            events.append({"model": names[i], "success": False, "error": str(output)})
+            continue
+        code, metrics = output
+        event = {"model": names[i], "success": bool(metrics.success and code), "metrics": getattr(metrics, "__dict__", {})}
+        events.append(event)
+        if code:
+            candidates.append(code)
+    return candidates, events
+
+
+async def run_single_pass(plan: str, problem: str, tests: list[dict[str, Any]], config: dict[str, Any], output_dir: str) -> dict[str, Any]:
+    google_key = require_google_api_key()
+    ollama_keys = get_ollama_api_keys()
+    model = config.get("model", "gemini-2.5-flash")
+    code, event = await generate_code(
+        plan,
+        problem,
+        model_name=model,
+        api_key_google=google_key if model.startswith("gemini-") else "",
+        api_key_ollama=ollama_keys[0] if ollama_keys else "",
+    )
+    evaluation = evaluate_candidate(code, tests, timeout_s=float(config.get("verification", {}).get("timeout_s", 5)), memory_limit_mb=int(config.get("verification", {}).get("memory_mb", 512)), max_tests=config.get("verification", {}).get("max_tests")) if code else {"compiled": False, "tests_passed": 0, "tests_failed": len(tests), "solved": False, "latency_seconds": None, "memory_mb": None, "verification_attempts": 0, "error_type": "generation_failed"}
+    return {"code": code, "candidates": [code] if code else [], "evaluations": [evaluation], "events": [getattr(event, "__dict__", {})], "model_calls": 1}
+
+
+async def run_multi_sample(plan: str, problem: str, tests: list[dict[str, Any]], config: dict[str, Any], output_dir: str) -> dict[str, Any]:
+    google_key = require_google_api_key()
+    ollama_keys = get_ollama_api_keys()
+    count = int(config.get("samples", 8))
+    candidates, events = await generate_samples(
+        plan,
+        problem,
+        count=count,
+        api_key_google=google_key,
+        api_key_ollama=ollama_keys[0] if ollama_keys else "",
+    )
+    evaluations = [
+        evaluate_candidate(c, tests, timeout_s=float(config.get("verification", {}).get("timeout_s", 5)), memory_limit_mb=int(config.get("verification", {}).get("memory_mb", 512)), max_tests=config.get("verification", {}).get("max_tests"))
+        for c in candidates
+    ]
+    selected = select_best_verified(evaluations)
+    return {"code": candidates[selected] if selected is not None else "", "candidates": candidates, "evaluations": evaluations, "events": events, "model_calls": count}
     events: list[dict[str, Any]] = []
     for i, output in enumerate(outputs):
         if isinstance(output, Exception):
