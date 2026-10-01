@@ -1,53 +1,43 @@
-# Reasoning-Is-All-You-Need
+# CTTR-VPS
 
-An end-to-end test-time reasoning system for generating and debugging C++ solutions to IOI-style programming tasks.
+## Collective Test-Time Reasoning for Verified Program Synthesis
 
-## Research question
+CTTR-VPS is the research identity of this repository. The implementation studies inference-time computation for C++ program synthesis on IOI-style algorithmic tasks.
 
-> How does additional inference-time computation change the probability of producing an objectively correct executable solution?
+### Research question
+How does additional inference-time computation change the probability of producing an objectively correct executable solution?
 
-## Pipeline
+### Core pipeline
+problem preprocessing -> multi-model planning -> multi-candidate code generation -> optimization -> objective candidate selection -> iterative execution-based debugging.
 
-`planning → multi-candidate code generation → optimization → objective candidate selection → iterative execution-based debugging`
+### Controlled evaluation
+The experiment harness provides single-pass generation, multi-sample generation, self-refinement, execution-based refinement, and CTTR-VPS. The primary metric is objective test-set correctness. Candidate count, model calls, debugging steps, latency, and cost proxies are also recorded.
 
-The system is designed as a compute-allocation study: additional candidate generation and debugging are treated as inference-time resources.
+### Results
+**No new controlled benchmark result is claimed yet.** Historical successful examples and the research hardening pass do not establish a general success rate.
 
-## Research hardening
+### Run
+Set credentials outside Git:
 
-This branch makes the following changes:
-- removes hard-coded API credentials from active source files;
-- removes first-success/first-candidate selection bias from the optimizer path;
-- evaluates optimizer candidates with objective execution tests before final debugging;
-- records the selected candidate and every candidate's test performance;
-- makes the long stage delay configurable instead of fixed;
-- documents the distinction between exploratory historical runs and controlled results.
+    export GOOGLE_API_KEYS='key1,key2,...'
+    export OLLAMA_API_KEYS='key1,key2,...'
 
-## Current evidence
+Install:
 
-The repository contains historical successful runs, including four early fully correct examples reported in the original project. These are useful demonstrations but are not enough to establish a general benchmark success rate.
+    pip install -r requirements.txt
 
-## Controlled research direction
+Run:
 
-Compare fixed test-time compute budgets such as 1, 5, and 20 generated candidates, with and without iterative debugging.
+    python scripts/run_experiment.py --config configs/baseline_single_pass.yaml
 
-Primary metric: objective verifier pass rate.
+Aggregate:
 
-Secondary metrics: model calls, debugging steps, latency, and cost proxy.
+    python scripts/evaluate.py --results results
 
-## Run requirements
+### Limitations
+Visible samples are not hidden/full-judge evaluation. Model/provider versions and API availability can change. Additional test-time computation has an explicit latency/cost trade-off.
 
-Set credentials outside the repository:
+See docs/architecture.md, docs/experiments.md, docs/result_schema.md, and docs/research_positioning.md.
 
-```bash
-export GOOGLE_API_KEYS='key1,key2,...'
-export OLLAMA_API_KEYS='key1,key2,...'
-export PIPELINE_STAGE_DELAY_SECONDS=0
-```
-
-Then install the dependencies listed by the original project and run the desired pipeline task.
-
-## Status
-
-Implemented: objective candidate selection, credential cleanup, configurable delay, research audit and reporting protocol.
-
-Not executed here: the expensive model/API benchmark.
+### History
+The repository was originally named Reasoning-Is-All-You-Need. Original modules and research artifacts are retained.
