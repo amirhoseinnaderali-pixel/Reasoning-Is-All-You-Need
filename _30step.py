@@ -45,7 +45,7 @@ api_key_google_list = [
 ]
         all_passed = True
         
-        for test in tests[:3]:  # Run first 3 tests
+        for test in tests:  # Run all supplied tests
             test_input = test.get("input", "")
             expected_output = test.get("expected_output", "")
             
