@@ -375,3 +375,112 @@ The portfolio is strongest when described as a progression from:
 It is not yet a collection of completed papers. It is a coherent set of implementations and a few strong quantitative experiments pointing toward one research question.
 
 The main missing ingredient is not another project. It is **controlled experiments that turn the strongest implementations into evidence**.
+
+
+## Additional audit findings from the remaining repositories
+
+### AutoTune-Research-Assistan
+The system is a research/fine-tuning discovery assistant rather than a validated recommendation model. It uses Gemini to infer requirements, generate queries, search Hugging Face/ArXiv/Kaggle, and generate a report. Its "quality score" is a heuristic aggregation, not an experimentally calibrated quality metric.
+
+**Security:** `main.py` currently contains a hard-coded Gemini API credential. This should be rotated and moved to environment variables. The README already documents an environment-variable workflow, so the source code and documentation are inconsistent.
+
+### Multimodal_Rag
+The implementation is a multimodal PDF QA prototype with:
+- text extraction + word-based chunking,
+- page rendering to images,
+- vision-model descriptions of pages,
+- sentence-transformer embeddings,
+- cosine-similarity retrieval,
+- query expansion,
+- LLM answer generation.
+
+Important correction: the code does not truly extract only embedded PDF images; it renders each page at 200 DPI and treats the page image as the visual retrieval unit.
+
+The research question is therefore better stated as **whether page-level visual representations add useful evidence to text retrieval for document QA**.
+
+Missing experiment: text-only vs page-image-only vs multimodal retrieval, with retrieval recall and answer correctness/faithfulness.
+
+### Creating-a-Q-A-dataset-with-the-DeepSeek-671B-free-API
+The implementation generates one QA pair per approximately 100-word chunk and validates only JSON schema. The checked artifact contains 18 QA pairs.
+
+This is a useful data-generation precursor for SFT/KD, but it has no quality-control experiment. The next meaningful experiment is to manually annotate a sample for factual correctness, answerability, coverage, duplication, and hallucination.
+
+### 1-fine-tuning-structured-output-llama2
+The title overstates what the code demonstrates. The notebook loads Llama-2-7B in 4-bit, applies LoRA, trains for only 10 steps on `Abirate/english_quotes`, runs generation, and pushes adapters to Hugging Face.
+
+I did not find a structured-output dataset, structured-output metric, or structured-output evaluation. Therefore this should be classified as **short LoRA/QLoRA feasibility + model packaging**, not evidence for structured generation.
+
+### vulnerability-detection-ai
+A stronger problem than previously noted is now visible in the saved dataset metadata:
+- training set: 1,600 samples, all marked secure, all with Medium severity;
+- validation set: 400 samples, all marked secure, all with Medium severity.
+
+This is incompatible with the README's claimed ten-class vulnerability-detection objective. The preprocessing code constructs a 7-dimensional mixed label vector, while the inference code expects a 10-class single-label classifier. The repository therefore currently has a **dataset/label-schema mismatch** that must be fixed before any model-performance claim is meaningful.
+
+This project should not currently be used as evidence that LoRA improved vulnerability detection.
+
+### codechain / agentCoder / agent_coder
+`agentCoder` and `agent_coder` contain byte-identical `agents.py` files; they appear to be duplicate repositories.
+
+The codechain-style architecture is a useful engineering precursor to the later multi-agent reasoning systems: sequential model refinement, scoring, and history tracking. However, the quality score is produced by another LLM rather than a task-grounded correctness metric, and one implementation adds the iteration number directly to the returned score (`evaluation["score"] + i`). That makes the score unsuitable as an experimental quality measure.
+
+### Audio2Entity
+A clean pipeline demonstration:
+audio -> Whisper transcription -> BERT NER.
+
+No labeled test set or NER precision/recall/F1 is present. This is application engineering, not research evidence.
+
+### Diabetes-Prediction-Project
+Unlike the README alone, the notebook contains reproducible metrics:
+- test accuracy about 0.7553,
+- recall about 0.7944,
+- precision about 0.7334,
+- macro F1 about 0.75.
+
+It is a valid classical ML project and an early example of actually measuring model performance, but it does not contribute strongly to the current LLM/reasoning research spine.
+
+### Sentiment-Analysis-of-COVID-19-Vaccine-Tweets
+The README reports 76% accuracy and 73% weighted F1 for the selected CNN. This is a legitimate early NLP evaluation artifact, but it belongs to the historical NLP foundation branch rather than the current research direction.
+
+### deepresearch-agent
+The repository currently contains only a minimal README and an effectively empty project directory. It should be treated as an idea/skeleton, not as evidence of a functioning deep-research agent.
+
+## Revised portfolio hierarchy
+
+After auditing these additional projects, the portfolio now separates cleanly into four levels:
+
+### Tier A - Direct research evidence
+- T5 PEFT comparison
+- distributed DPO benchmark
+- OX benchmark artifacts
+- classical ML/NLP projects with actual metrics
+
+### Tier B - Strong research prototypes with real artifacts but incomplete causal evidence
+- Reasoning-Is-All-You-Need
+- graph_reasoning
+- N-Queens prompt-time reasoning
+- curriculum fine-tuning
+- Qwen GSM8K
+- Qwen Coder LoRA
+- Phi -> Qwen distillation
+- multi-agent ReAct sandbox
+
+### Tier C - Useful systems / infrastructure that need evaluation
+- Reasoning-Agent
+- SmartRAG
+- Multimodal RAG
+- AutoTune
+- QA dataset generator
+- vulnerability detection
+- RadVision
+- codechain / agentCoder
+
+### Tier D - Foundations / demos
+- ML coursework
+- RL coursework
+- agent1
+- Audio2Entity
+- structured-output Llama2 experiment
+- deepresearch-agent skeleton
+
+The overall research story remains the same, but the evidence hierarchy is now much sharper.
