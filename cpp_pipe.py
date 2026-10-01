@@ -515,6 +515,7 @@ async def plan_to_code(
     model_config: Dict,
     iteration: int,
     api_key_google: str = "",
+    api_key_ollama: str = "",
     speed: int = 1,
     memory: int = 512
 ) -> Tuple[str, ExecutionMetrics]:
