@@ -22,7 +22,8 @@ Exact model/revision, retry policy, generation parameters, seed, candidate budge
 - **IMPLEMENTED:** frozen protocol, objective evaluation architecture, controlled budgets, immutable result schema, secure Docker sandbox, real execution path, validation/smoke/real modes, audit and analysis infrastructure.
 - **VALIDATED:** validation and CI gates are implemented; successful CI completion is not yet claimed here.
 - **SCIENTIFICALLY AUDITED:** fail-closed audit implemented; the current audit is expected to remain **FAIL** until the benchmark is frozen.
-- **READY FOR REAL EXECUTION:** **BLOCKED** until the benchmark is materialized and hashed and the external hidden-test artifact is supplied.
+- **PUBLIC BENCHMARK MATERIALIZATION:** **FROZEN** — 93 tasks from the recovered HLCE IOI source are materialized and hashed.
+- **READY FOR REAL EXECUTION:** **BLOCKED** until the external hidden-test artifact is supplied and hashed for every task.
 - **REAL SMOKE PASSED:** not claimed.
 - **EXP-001 EXECUTED:** not claimed.
 
