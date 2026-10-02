@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "benchmark_id": "CTTR-VPS-IOI",
+  "status": "BLOCKED_PENDING_MATERIALIZATION",
+  "provenance": {
+    "source_file": "ioi_multi_view.json",
+    "source_repo": "amirhoseinnaderali-pixel/Reasoning-Is-All-You-Need",
+    "source_sha256": null
+  },
+  "materialization_sha256": null,
+  "task_count": 0,
+  "tasks": [],
+  "hidden_tests": {
+    "provider": "external_secret_artifact",
+    "path_env": "CTTR_HIDDEN_TESTS_PATH",
+    "available_during_generation": false
+  }
+}
