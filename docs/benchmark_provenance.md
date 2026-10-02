@@ -7,7 +7,7 @@ The repository history and public project documentation identify Humanity's Last
 - repository: `Humanity-s-Last-Code-Exam/HLCE`
 - path: `HLCE/IOI_scripts/examples/ioi_contest_problems_chatgpt-4o-latest.jsonl`
 - Git blob SHA: `01bba2e3569bbec3dfa22990b8c0f0394af79d39`
-- source SHA-256: `824fbb624efbd595499f51c78e24ef47a9b4da2612208c1f15f68843daa59db0`
+- source SHA-256: `3f5ab8c2a278746864031f1f9c06d9c5c028493266f3f403e64090c9026f3f68`
 - rows: 93
 
 The project also explicitly references the `HumanLastCodeExam/ioi` dataset.
@@ -18,11 +18,11 @@ The project also explicitly references the `HumanLastCodeExam/ioi` dataset.
 
 Public materialization SHA-256:
 
-`17d99388687b11bedbb7486f4e84c621b182c98244290174b7f93816e0b198a6`
+`4e926c17a60f1f6bd6a8c043ae9a9742e1a78cbd1f7f6b796a4ec6779fb71720`
 
 Manifest identity SHA-256:
 
-`e8a92d06e32a99bfe5f1a99293e8bece7a2471c8bc01af4992ae1970389e400f`
+`ff6e3b091584c7f49dd4e1981b32d2863ecca2979ca56e1e49e5ceb86b7f9740`
 
 ## Hidden-test boundary
 
