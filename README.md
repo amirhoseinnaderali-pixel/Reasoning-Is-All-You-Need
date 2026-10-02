@@ -44,8 +44,23 @@ Real mode requires frozen benchmark materialization, credentials, Docker, and is
 
 No mock fallback exists in real mode.
 
-### Results
+### Historical research case study
 
-No empirical benchmark accuracy, solved-rate, significance result, or performance claim is reported from historical runs. Smoke artifacts are explicitly `VALIDATION_ONLY` and are not EXP-001 evidence.
+The repository preserves a real historical CTTR-VPS artifact corpus for four IOI tasks:
+
+- E. Memory
+- C. Quality of Living
+- E. Friend
+- A. Arranging Shoes
+
+Across these four cases, the repository preserves **14 planning records and 54 labeled C++ code variants**. These are direct repository artifacts.
+
+The historical repository does **not** preserve final judge logs, scores, runtimes, or complete API-call telemetry, so no historical success rate is reported. The old README's “first 4 runs fully correct” and “~80% success” statements are treated as documentation-only claims, not measured results.
+
+[Read the historical research report](docs/research_report.md).
+
+### Current hardened protocol
+
+The hardened EXP-001 path is a separate research instrument. It has **not** been executed and must remain fail-closed when required benchmark/hidden-test evidence is unavailable.
 
 See `docs/scientific_protocol.md`, `docs/benchmark_provenance.md`, `docs/result_schema_v2.md`, `docs/reproducibility.md`, and `docs/audit.md`.
