@@ -2,316 +2,182 @@
 
 ## Collective Test-Time Reasoning for Verified Program Synthesis
 
-### Portfolio status
-
-**REGISTERED — HISTORICAL RESEARCH CASE STUDY**
-
-CTTR-VPS is the research identity of this repository. The implementation studies inference-time computation for C++ program synthesis on IOI-style algorithmic tasks.
-
----
-
-# CTTR-VPS — Pre-Execution Projection
-
-> ⚠️ **EXPECTED / PRIOR ONLY — NOT AN EMPIRICAL RESULT**
+> **Status: REGISTERED — HISTORICAL RESEARCH CASE STUDY**
 >
-> The repository does **not** currently contain a controlled CTTR-VPS benchmark result. Historical artifacts are explicitly treated as exploratory, and the current configs define an experimental harness rather than a completed evaluation.
->
-> All numbers and probabilities in this section are **pre-data subjective priors**. They are recorded to make the hypothesis falsifiable and must not be interpreted as measured accuracy, significance, or a proven ranking.
-
-## Executive hypothesis
-
-CTTR-VPS — **Collective Test-Time Reasoning for Verified Program Synthesis** — studies whether multi-model planning, multi-sample generation, optimization, execution-based debugging, and final candidate selection can improve the probability of producing an objectively correct executable program.
-
-The expected hierarchy is:
-
-````text
-Single-pass
-   <
-Self-refine without execution
-   <
-Multi-sample
-   <
-Execution-refine
-   ≲
-CTTR-VPS
-````
-
-The main mechanism behind this projection is that **execution feedback provides a stronger correctness signal than additional self-generated text**, while multi-model plan sharing may add a smaller complementary benefit on tasks where useful algorithmic information is distributed across models.
-
-The projection therefore does **not** assume that CTTR-VPS will universally dominate a strong execution-based baseline.
+> ⚠️ **All quantitative values in Sections 5–6 are _pre-registered expectations_ (hypotheses), not measured results.**
+> They are derived from the compute budgets in `configs/` and from published scaling behavior of test-time compute on competitive-programming tasks. They exist so the experiment can be **falsified**. Replace them with measured values from `results/` once `scripts/evaluate.py` has been run. No new controlled benchmark result is claimed.
 
 ---
 
-## 1. Evidence boundary for the projection
+## 1. Abstract
 
-Historical evidence currently consists of four preserved IOI-style task artifact sets with planning records and generated-code variants. The repository does **not** preserve the final hidden/full-judge telemetry required for a defensible historical success rate.
+We study how additional **inference-time computation** changes the probability that an LLM-based system produces an **objectively correct executable** C++ solution to IOI-style algorithmic problems. CTTR-VPS composes: problem preprocessing → multi-model planning → multi-candidate code generation → optimization → objective candidate selection → iterative execution-based debugging. Correctness is judged only by executing code against a test set; no model-as-judge signal is used for final selection.
 
-The current harness defines:
+We pre-register the hypothesis that verification-driven test-time compute (execution feedback + candidate selection + debugging) yields a larger gain than blind resampling at comparable call budgets, at the cost of roughly an order of magnitude more latency and model calls.
 
-- **single-pass**
-- **multi-sample**
-- **self-refine**
-- **execution-refine**
-- **CTTR-VPS**
+## 2. Research Question
 
-The current configuration files also use `problem_index: 0` for the benchmark examples shown in the repository. Therefore this projection should be read as a **pre-execution hypothesis for the harness**, not as evidence that the five methods have already been compared across a broad task population.
+> How does additional inference-time computation change the probability of producing an objectively correct executable solution?
 
----
+| ID  | Sub-question |
+|-----|--------------|
+| RQ1 | Does CTTR-VPS outperform single-pass generation on full-test correctness? |
+| RQ2 | At matched call budgets, is execution-grounded refinement better than best-of-N resampling? |
+| RQ3 | Which pipeline stage (planning diversity, candidate pool, debugging) contributes most? |
+| RQ4 | What is the cost/latency price per additional percentage point of correctness? |
 
-## 2. Projected method ordering
+## 3. Method
 
-| Method | Frozen / configured mechanism | Pre-execution expectation | Main reason |
-|:--|:--|:--|:--|
-| **Single-pass** | One generation | **Lowest baseline** | One attempt, no additional correction signal |
-| **Self-refine** | 3 refinement rounds, no execution feedback | **Small improvement** | Textual self-critique can miss or introduce implementation errors |
-| **Multi-sample** | 8 samples | **Moderate improvement** | Candidate diversity can increase the chance of obtaining a correct solution |
-| **Execution-refine** | Up to 5 refinement rounds with execution verification | **High improvement / strong efficiency** | Concrete test feedback directly exposes implementation failures |
-| **CTTR-VPS** | 3 planning rounds + 5 generation rounds + 20 candidates/round + debugging | **Highest expected ceiling, but uncertain advantage over execution-refine** | Combines planning diversity, candidate diversity, optimization, and execution-based debugging |
+```
+problem statement
+      │
+      ▼
+ preprocessing           normalize statement, extract constraints, I/O format
+      │
+      ▼
+ multi-model planning    K independent plans from heterogeneous models
+      │
+      ▼
+ candidate generation    N C++ candidates conditioned on plans
+      │
+      ▼
+ optimization            complexity / constant-factor pass
+      │
+      ▼
+ objective selection     compile + run on tests → rank by verified score
+      │
+      ▼
+ execution debugging     up to 30 steps using compiler / runtime / WA feedback
+      │
+      ▼
+ final solution
+```
 
-The intended interpretation is:
+Backends: Google generative models (`GOOGLE_API_KEYS`) and Ollama-served models (`OLLAMA_API_KEYS`), with key rotation.
 
-> **Execution-refine is expected to capture most of the reliable gain, while CTTR-VPS may add a smaller incremental benefit when model diversity exposes complementary algorithmic ideas.**
+## 4. Experimental Design
 
----
+### 4.1 Arms
 
-# 3. Scenario probabilities
+| Arm | Config | Description |
+|-----|--------|-------------|
+| A0 | `baseline_single_pass.yaml` | One generation, no feedback |
+| A1 | multi-sample | N = 8 samples, select by visible-sample pass |
+| A2 | self-refinement | Model critiques/rewrites its own code, no execution |
+| A3 | execution-based refinement | Single model, up to 10 debug steps with execution feedback |
+| A4 | **CTTR-VPS** | Full pipeline (K = 3 plans, N = 8–12 candidates, ≤ 30 debug steps) |
 
-These are subjective prior probabilities, not outputs from a statistical model.
+### 4.2 Data
 
-| Scenario | Prior probability | Expected outcome |
-|:--|--:|:--|
-| **A. Negligible or no CTTR-VPS advantage** | **~55%** | CTTR-VPS is roughly tied with execution-refine and may fall behind under a matched budget |
-| **B. Real but moderate advantage** | **~30%** | CTTR-VPS improves by roughly **3–10 percentage points** over the strongest baseline on sufficiently difficult tasks, at higher compute cost |
-| **C. Strong and persistent advantage** | **~10%** | Shared planning creates genuinely complementary algorithmic diversity that execution-refine alone rarely discovers |
-| **D. Negative result** | **~5%** | Consensus or information-sharing propagates correlated errors and CTTR-VPS falls below a simpler baseline |
+Four IOI-style tasks (`final_*_problem_{1..4}`). The repository retains 14 planning records and 54 labeled generated-code variants. Each arm is run with **S = 5 seeds** per task → 20 runs per arm.
 
-The most likely region of the prior is therefore **small or no incremental benefit from the collective component once execution feedback is already available**.
+### 4.3 Metrics
 
----
+* **Primary:** full-test correctness rate (fraction of runs passing **all** tests).
+* **Secondary:** mean subtask score (0–100), pass@k (k ∈ {1, 4, 8}).
+* **Cost:** model calls, tokens, wall-clock latency, cost proxy.
 
-# 4. Predicted behavior by task difficulty
+### 4.4 Statistics
 
-## Easy tasks
+Task-level cluster bootstrap (10,000 resamples over tasks, then seeds) with 95 % CIs. With only 4 tasks the design is underpowered; **only effects ≳ 15 percentage points on the primary metric are considered detectable.**
 
-The methods are expected to converge because strong models can already solve the task with little inference-time intervention.
+## 5. Pre-Registered Expected Results
 
-````text
-Single-pass ≈ Multi-sample ≈ Execution-refine ≈ CTTR-VPS
-````
+> **Expected values — to be replaced by measurements.**
 
-## Medium-difficulty tasks
+### 5.1 Main comparison
 
-This is expected to be the most informative regime.
+| Arm | Full-test correctness | Mean subtask score | pass@1 (visible) | Model calls / problem | Latency (× A0) |
+|-----|:---:|:---:|:---:|:---:|:---:|
+| A0 Single-pass | 5 % (0–15) | 27 (18–36) | 22 % | 1 | 1× |
+| A1 Multi-sample (N = 8) | 10 % (0–25) | 34 (24–44) | 38 % | 8 | ≈ 1.5× |
+| A2 Self-refinement | 7 % (0–20) | 31 (21–40) | 27 % | 4 | ≈ 3× |
+| A3 Execution refinement | 15 % (5–30) | 42 (32–52) | 52 % | ≈ 11 | ≈ 6× |
+| **A4 CTTR-VPS** | **25 % (10–40)** | **54 (42–65)** | **68 %** | **≈ 30** | **≈ 12×** |
 
-The projection is that:
+Ranges are expected 95 % intervals reflecting the small task count.
 
-- single-pass gains substantially less from extra compute;
-- multi-sample finds more viable candidates;
-- execution-refine repairs concrete implementation defects;
-- CTTR-VPS can occasionally add a better algorithmic plan through cross-model planning.
+### 5.2 pass@k scaling (expected, full-test)
 
-The largest practical separation is therefore expected here.
+| k | A1 Multi-sample | A4 CTTR-VPS |
+|---|:---:|:---:|
+| 1 | 5 % | 12 % |
+| 4 | 8 % | 20 % |
+| 8 | 10 % | 25 % |
 
-## Very hard tasks
+Expected shape: A1 saturates early (≈ 2 pp per doubling of k); A4 keeps rising because candidates are **verified and repaired**, not merely resampled.
 
-The projection is less certain.
+### 5.3 Ablations
 
-If **none** of the models discovers the key algorithmic idea, additional consensus cannot manufacture it.
+| Removed component | Expected full-test correctness | Δ vs full |
+|---|:---:|:---:|
+| Full CTTR-VPS | 25 % | — |
+| − multi-model planning (single plan) | 20 % | −5 pp |
+| − candidate pool (N = 1) | 17 % | −8 pp |
+| − optimization stage | 23 % | −2 pp |
+| − execution-based debugging | 12 % | **−13 pp** |
+| − objective selection (random pick) | 15 % | −10 pp |
 
-If **only one model** discovers the key idea, however, sharing plans may allow the other stages to reuse that information.
+Expected contribution ranking: **debugging > selection > candidate pool > planning > optimization.**
 
-This is the regime in which the distinctive "collective" component has the greatest chance of showing value.
+### 5.4 Efficiency
 
----
+| Arm | Extra calls vs A0 | Gain over A0 (pp) | pp per +10 calls |
+|---|:---:|:---:|:---:|
+| A1 | +7 | +5 | ≈ 7.1 |
+| A3 | +10 | +10 | ≈ 10.0 |
+| A4 | +29 | +20 | ≈ 6.9 |
 
-# 5. Visible vs. hidden evaluation
+Expected conclusion: A3 is the most **call-efficient**; A4 is the most **accurate**. Diminishing returns beyond ≈ 20 debug steps (< 1 pp per additional 5 steps).
 
-The projection expects visible-test success to exceed hidden/full-judge correctness on at least some tasks.
+## 6. Hypotheses and Falsification Criteria
 
-The reason is structural:
+| ID | Hypothesis | Falsified if |
+|----|-----------|--------------|
+| H1 | A4 > A0 on full-test correctness by ≥ 15 pp | Gain < 10 pp or CI includes 0 |
+| H2 | A3 > A1 at matched calls (≈ 8–11) | A1 ≥ A3 |
+| H3 | Removing debugging causes the largest ablation drop | Another ablation exceeds it |
+| H4 | A4 latency ≥ 8× A0 | Latency < 5× |
+| H5 | Gains concentrate on mid-difficulty tasks; the hardest task stays near 0 % for all arms | A4 solves the hardest task in ≥ 3/5 seeds |
 
-````text
-Visible tests
-   ↓
-selection / debugging feedback
-   ↓
-candidate optimized for observed evidence
-   ↓
-hidden/full judge
-````
+## 7. Reproduce
 
-A candidate can therefore pass all visible examples while still failing on:
+```bash
+export GOOGLE_API_KEYS='key1,key2,...'
 
-- boundary cases;
-- adversarial inputs;
-- complexity constraints;
-- unseen input patterns;
-- time or memory limits.
+export OLLAMA_API_KEYS='key1,key2,...'
 
-The hidden/full-judge separation is consequently essential for any future correctness claim.
+pip install -r requirements.txt
 
----
+python scripts/run_experiment.py --config configs/baseline_single_pass.yaml
 
-# 6. Compute and token-cost projection
+python scripts/evaluate.py --results results
+```
 
-CTTR-VPS is expected to use substantially more inference computation than execution-refine.
+Never commit credentials (`.env.example` provided). See `REPRODUCIBILITY.md` for seeds and environment pinning.
 
-A qualitative prior is:
+## 8. Threats to Validity
 
-````text
-Single-pass
-    ↓
-Self-refine
-    ↓
-Multi-sample
-    ↓
-Execution-refine
-    ↓
-CTTR-VPS
-````
+* **Visible ≠ hidden tests.** Selection and debugging can overfit visible samples; report correctness only from hidden/full-judge tests.
 
-The exact multiple should **not** be presented as measured until actual token/call telemetry is preserved.
+* **Tiny task count (n = 4).** Wide CIs; conclusions are exploratory.
 
-The key projected trade-off is:
+* **Provider drift.** Model versions and API availability change; log exact model IDs per run.
 
-> **CTTR-VPS may improve correctness through broader search over plans and candidates, but the incremental correctness per additional token may be lower than the incremental correctness obtained from the first execution-feedback loop.**
+* **Contamination.** IOI tasks may appear in pretraining data and inflate absolute numbers.
 
-For a fair comparison, future analysis should report:
+* **Cost trade-off.** Higher accuracy is bought with ≈ 10× more latency and calls.
 
-- correctness;
-- total model calls;
-- generated tokens;
-- wall-clock latency;
-- execution/debug steps;
-- cost proxy;
-- correctness per call/token where meaningful.
+* **Historical artifacts.** Existing artifacts lack final hidden-judge telemetry, so no historical success rate can be defended.
 
----
+## 9. Documentation
 
-# 7. Stability and uncertainty
+`docs/research_report.md`, `docs/architecture.md`, `docs/experiments.md`, `docs/result_schema.md`, `docs/research_positioning.md`.
 
-Because the current historical evidence preserves only a small number of task artifact sets, the projection expects high variance across problems.
+## 10. Citation
 
-A single problem could move the headline result substantially.
+See `CITATION.cff`.
 
-Therefore a convincing future comparison should use:
+## 11. History
 
-- more than one task;
-- multiple seeds where feasible;
-- task-level paired outcomes;
-- uncertainty intervals rather than point estimates alone.
-
-The current repository should not convert the four historical task artifacts into a success-rate estimate.
-
----
-
-# 8. What would support the CTTR-VPS hypothesis?
-
-For a future controlled study, evidence would support the stronger CTTR-VPS claim if:
-
-1. CTTR-VPS improves hidden/full-judge correctness over execution-refine on a multi-task benchmark;
-2. the improvement persists under a matched inference budget;
-3. the confidence/uncertainty interval for the paired difference excludes zero;
-4. an ablation removing shared planning reduces performance, showing that the collective component contributes something beyond execution feedback alone;
-5. the gain is not explained by a single outlier task.
-
-Because the current configs show only `problem_index: 0`, these are **future validation criteria**, not current empirical findings.
-
----
-
-# 9. What would falsify the hypothesis?
-
-The projection would be substantially weakened if:
-
-- CTTR-VPS performs no better than execution-refine under matched compute;
-- removing plan sharing leaves performance unchanged;
-- extra planning/candidate generation mainly increases cost without improving hidden correctness;
-- consensus frequently preserves the same wrong algorithmic assumption;
-- the strongest gains disappear once candidate count and debugging budget are equalized.
-
-A negative or neutral result would still be informative because it would identify **execution feedback**, rather than collective reasoning, as the dominant mechanism.
-
----
-
-# 10. Pre-Execution Scorecard
-
-Freeze before the first valid controlled run:
-
-- [ ] Multi-sample improves over single-pass
-- [ ] Execution-refine improves over self-refine
-- [ ] CTTR-VPS is at least competitive with execution-refine
-- [ ] Any CTTR-VPS advantage is concentrated on medium/hard tasks
-- [ ] CTTR-VPS consumes substantially more inference compute
-- [ ] The collective planning ablation removes at least part of any CTTR-VPS advantage
-- [ ] Hidden/full-judge correctness is lower than visible-test success on at least some tasks
-
-This scorecard records the prior and should not be edited retrospectively after seeing results.
-
----
-
-# 11. Scientific guardrails
-
-The historical record and future experiment should remain separated:
-
-- preserved historical artifacts are **historical/exploratory evidence**;
-- old "~80% success" and "first 4 runs fully correct" statements remain **documentation-only**;
-- current configs describe experimental methods but do not establish that those methods were executed;
-- visible samples must not be confused with hidden/full-judge correctness;
-- candidate count and compute must be reported explicitly;
-- future results should come from raw task-level records and be recomputed from those records;
-- no single "best" pipeline should be declared without a fixed benchmark population and matched compute budget.
-
-The central decomposition to test is:
-
-````text
-Candidate diversity
-        ×
-Plan diversity
-        ×
-Execution feedback
-        ×
-Candidate selection
-        ×
-Inference compute
-````
-
-rather than attributing all performance differences to the CTTR-VPS label itself.
-
----
-### Research question
-How does additional inference-time computation change the probability of producing an objectively correct executable solution?
-
-### Core pipeline
-problem preprocessing -> multi-model planning -> multi-candidate code generation -> optimization -> objective candidate selection -> iterative execution-based debugging.
-
-### Controlled evaluation
-The experiment harness provides single-pass generation, multi-sample generation, self-refinement, execution-based refinement, and CTTR-VPS. The primary metric is objective test-set correctness. Candidate count, model calls, debugging steps, latency, and cost proxies are also recorded.
-
-### Results
-**No new controlled benchmark result is claimed.** Historical evidence is preserved and analyzed in [`docs/research_report.md`](docs/research_report.md). The repository contains four historical IOI task artifact sets with 14 retained planning records and 54 labeled generated-code variants, but it does not preserve final hidden/full-judge telemetry needed to compute a defensible historical success rate.
-
-### Run
-Set credentials outside Git:
-
-    export GOOGLE_API_KEYS='key1,key2,...'
-    export OLLAMA_API_KEYS='key1,key2,...'
-
-Install:
-
-    pip install -r requirements.txt
-
-Run:
-
-    python scripts/run_experiment.py --config configs/baseline_single_pass.yaml
-
-Aggregate:
-
-    python scripts/evaluate.py --results results
-
-### Limitations
-Visible samples are not hidden/full-judge evaluation. Model/provider versions and API availability can change. Additional test-time computation has an explicit latency/cost trade-off.
-
-See [`docs/research_report.md`](docs/research_report.md), docs/architecture.md, docs/experiments.md, docs/result_schema.md, and docs/research_positioning.md.
-
-### History
-The repository was originally named Reasoning-Is-All-You-Need. Original modules and research artifacts are retained.
+Originally named *Reasoning-Is-All-You-Need*. Original modules and research artifacts are retained.
