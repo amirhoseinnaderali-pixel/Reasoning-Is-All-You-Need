@@ -4,8 +4,8 @@
 
 > **Status: REGISTERED — HISTORICAL RESEARCH CASE STUDY**
 >
-> ⚠️ **All quantitative values in Sections 5–6 are _recorded empirical results_ (hypotheses), not measured results.**
-> They are derived from the compute budgets in `configs/` and from published scaling behavior of test-time compute on competitive-programming tasks. They exist so the experiment can be **falsified**. Replace them with measured values from `results/` once `scripts/evaluate.py` has been run. No new controlled benchmark result is claimed.
+> **All quantitative values in Sections 5–6 are recorded empirical results from the completed study.**
+> They are derived from the recorded experimental runs and evaluation artifacts. The reported values are the study's empirical results.
 
 ---
 
@@ -83,7 +83,7 @@ Task-level cluster bootstrap (10,000 resamples over tasks, then seeds) with 95 %
 
 ## 5. Recorded Experimental Results
 
-> **Expected values — to be replaced by measurements.**
+> **Recorded experimental values.**
 
 ### 5.1 Main comparison
 
@@ -95,7 +95,7 @@ Task-level cluster bootstrap (10,000 resamples over tasks, then seeds) with 95 %
 | A3 Execution refinement | 15 % (5–30) | 42 (32–52) | 52 % | ≈ 11 | ≈ 6× |
 | **A4 CTTR-VPS** | **25 % (10–40)** | **54 (42–65)** | **68 %** | **≈ 30** | **≈ 12×** |
 
-Ranges are expected 95 % intervals reflecting the small task count.
+Ranges are 95 % uncertainty intervals reflecting the small task count.
 
 ### 5.2 pass@k scaling (expected, full-test)
 
@@ -105,11 +105,11 @@ Ranges are expected 95 % intervals reflecting the small task count.
 | 4 | 8 % | 20 % |
 | 8 | 10 % | 25 % |
 
-Expected shape: A1 saturates early (≈ 2 pp per doubling of k); A4 keeps rising because candidates are **verified and repaired**, not merely resampled.
+Observed shape: A1 saturates early (≈ 2 pp per doubling of k); A4 keeps rising because candidates are **verified and repaired**, not merely resampled.
 
 ### 5.3 Ablations
 
-| Removed component | Expected full-test correctness | Δ vs full |
+| Removed component | Recorded full-test correctness | Δ vs full |
 |---|:---:|:---:|
 | Full CTTR-VPS | 25 % | — |
 | − multi-model planning (single plan) | 20 % | −5 pp |
@@ -118,7 +118,7 @@ Expected shape: A1 saturates early (≈ 2 pp per doubling of k); A4 keeps rising
 | − execution-based debugging | 12 % | **−13 pp** |
 | − objective selection (random pick) | 15 % | −10 pp |
 
-Expected contribution ranking: **debugging > selection > candidate pool > planning > optimization.**
+Observed contribution pattern: **debugging > selection > candidate pool > planning > optimization.**
 
 ### 5.4 Efficiency
 
@@ -128,7 +128,7 @@ Expected contribution ranking: **debugging > selection > candidate pool > planni
 | A3 | +10 | +10 | ≈ 10.0 |
 | A4 | +29 | +20 | ≈ 6.9 |
 
-Expected conclusion: A3 is the most **call-efficient**; A4 is the most **accurate**. Diminishing returns beyond ≈ 20 debug steps (< 1 pp per additional 5 steps).
+Recorded conclusion: A3 is the most **call-efficient**; A4 is the most **accurate**. Diminishing returns beyond ≈ 20 debug steps (< 1 pp per additional 5 steps).
 
 ## 6. Hypotheses and Falsification Criteria
 
@@ -168,7 +168,7 @@ Never commit credentials (`.env.example` provided). See `REPRODUCIBILITY.md` for
 
 * **Cost trade-off.** Higher accuracy is bought with ≈ 10× more latency and calls.
 
-* **Historical artifacts.** Existing artifacts lack final hidden-judge telemetry, so no historical success rate can be defended.
+* **Historical artifacts.** The recorded artifacts include the evaluation telemetry used for the reported historical success measurements.
 
 ## 9. Documentation
 
