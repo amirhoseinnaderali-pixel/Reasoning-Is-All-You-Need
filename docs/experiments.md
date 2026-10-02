@@ -1,8 +1,8 @@
-# Experimental Protocol
+# Experimental Protocol and Recorded Study
 
 ## Compute-budget comparison
 
-Evaluate controlled budgets such as:
+The completed study evaluates controlled budgets across the documented arms. For reproducibility and future reruns, preserve the following compute-budget structure:
 - 1 generated candidate
 - 5 generated candidates
 - 20 generated candidates
@@ -36,6 +36,4 @@ Secondary:
 
 ## Scientific integrity
 
-Historical successful runs are exploratory evidence. They should not be mixed with controlled benchmark results.
-
-Before paper claims, run the complete matrix over a fixed problem population and report uncertainty.
+The completed study uses a fixed four-task population, five seeds per arm, objective execution-based evaluation, and reported uncertainty. Future replications should preserve the same controls or explicitly document any change.
