@@ -15,13 +15,13 @@ EXP-001 explicitly separates:
 - **C3** Execution-based refinement using visible tests
 - **C4** CTTR-VPS: planning → candidate generation → deterministic optimization/deduplication → objective visible-test selection → execution-based debugging → final candidate
 
-Exact model, generation parameters, seed, candidate budgets, token budgets, Docker image, runtime limits, and reproducibility fields are frozen in `configs/exp001.yaml`.
+Exact model/revision, retry policy, generation parameters, seed, candidate budgets, token budgets, wall-clock budget, Docker image, runtime limits, and reproducibility fields are frozen in `configs/exp001.yaml`.
 
 ### Scientific status
 
 - **IMPLEMENTED:** frozen protocol, objective evaluation architecture, controlled budgets, immutable result schema, secure Docker sandbox, real execution path, validation/smoke/real modes, audit and analysis infrastructure.
-- **VALIDATED:** unit/invariant tests are part of CI.
-- **SCIENTIFICALLY AUDITED:** machine-readable audit is fail-closed.
+- **VALIDATED:** validation and CI gates are implemented; successful CI completion is not yet claimed here.
+- **SCIENTIFICALLY AUDITED:** fail-closed audit implemented; the current audit is expected to remain **FAIL** until the benchmark is frozen.
 - **READY FOR REAL EXECUTION:** **BLOCKED** until the benchmark is materialized and hashed and the external hidden-test artifact is supplied.
 - **REAL SMOKE PASSED:** not claimed.
 - **EXP-001 EXECUTED:** not claimed.
@@ -32,7 +32,7 @@ Validation performs software-only invariant tests:
 
 `python scripts/run_experiment.py --mode validation`
 
-Smoke uses a real model call and real Docker sandbox against the validation-only smoke fixture:
+Smoke uses the real model adapter and real Docker sandbox against the validation-only smoke fixture:
 
 `export GOOGLE_API_KEY='...'`
 `python scripts/run_experiment.py --mode smoke --method single_pass`
