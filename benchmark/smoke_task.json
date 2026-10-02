@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0",
+  "tasks": [
+    {
+      "task_id": "SMOKE-001",
+      "problem": "Given n integers, print their sum.",
+      "visible_tests": [
+        {"input": "3\n1 2 3\n", "expected_output": "6"},
+        {"input": "4\n-1 5 2 0\n", "expected_output": "6"}
+      ],
+      "hidden_tests": [
+        {"input": "1\n7\n", "expected_output": "7"}
+      ]
+    }
+  ]
+}
