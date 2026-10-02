@@ -1,14 +1,14 @@
 from __future__ import annotations
 import json,os,time
 from collections.abc import Callable
-from .hardening import canonical,config_hash,candidate_set_hash,environment_metadata,git_sha,load_manifest,load_protocol,run_id,sha256_bytes
+from .hardening import canonical,config_hash,candidate_set_hash,dependency_lock_hash,environment_metadata,git_sha,load_manifest,load_protocol,run_id,sha256_bytes
 from .docker_sandbox import DockerSandbox
 from .model_adapter import BudgetExceeded,FrozenGemini,ModelCallError,extract_cpp
 
 class Budget:
     def __init__(self,key,max_calls,max_tokens,max_debug,max_wall):
         self.api_key=key;self.max_calls=max_calls;self.max_tokens=max_tokens;self.max_debug=max_debug;self.max_wall=max_wall
-        self.model_calls=0;self.debug_steps=0;self.token_usage=[];self.started=time.perf_counter()
+        self.model_calls=0;self.debug_steps=0;self.token_usage=[];self.started=time.perf_counter();self.model_revision=None
     def tokens(self): return sum((x.get("total_tokens") or 0) for x in self.token_usage)
     def elapsed(self): return time.perf_counter()-self.started
     def check(self):
@@ -95,5 +95,5 @@ def run_real_or_smoke(task,method,seed,mode,out_root,hidden_loader:Callable[[],l
     protocol=load_protocol()
     status="VALIDATION_ONLY" if mode!="real" else "COMPLETED"
     if run_failure:status="BUDGET_VIOLATION" if run_failure=="budget_violation" else "FAILED"
-    record={"schema_version":"2.0","experiment_id":"EXP-001","run_id":run_id(),"task_id":str(task["task_id"]),"seed":seed,"method":method,"candidate_set_hash":candidate_set_hash(selection),"config_hash":config_hash(protocol),"benchmark_hash":load_manifest().get("materialization_sha256"),"model_config_hash":config_hash(protocol["model"]),"model_revision":protocol["model"]["model_revision"],"candidate_count":len(selection),"generated_candidate_count":generated_count,"visible_test_hash":visible_hash,"hidden_test_hash":hidden_hash,"model_calls":budget.model_calls,"token_usage":budget.token_usage,"refinement_debug_steps":budget.debug_steps,"visible_evaluation":visible,"hidden_evaluation":hidden,"solved":solved,"failure_type":run_failure or (None if solved else (hidden or visible).get("failure_type")),"wall_clock_seconds":wall,"budget_usage":{"max_calls":budget.max_calls,"calls":budget.model_calls,"tokens":budget.tokens(),"max_tokens":budget.max_tokens,"max_debug_steps":budget.max_debug,"debug_steps":budget.debug_steps,"max_wall_time_seconds":budget.max_wall,"elapsed_seconds":budget.elapsed()},"environment":environment_metadata(),"git_sha":git_sha(),"execution_mode":mode,"status":status}
+    record={"schema_version":"2.0","experiment_id":"EXP-001","run_id":run_id(),"task_id":str(task["task_id"]),"seed":seed,"method":method,"candidate_set_hash":candidate_set_hash(selection),"config_hash":config_hash(protocol),"benchmark_hash":load_manifest().get("materialization_sha256"),"model_config_hash":config_hash(protocol["model"]),"model_revision":budget.model_revision or protocol["model"]["model_revision"],"candidate_count":len(selection),"generated_candidate_count":generated_count,"visible_test_hash":visible_hash,"hidden_test_hash":hidden_hash,"model_calls":budget.model_calls,"token_usage":budget.token_usage,"refinement_debug_steps":budget.debug_steps,"visible_evaluation":visible,"hidden_evaluation":hidden,"solved":solved,"failure_type":run_failure or (None if solved else (hidden or visible).get("failure_type")),"wall_clock_seconds":wall,"budget_usage":{"max_calls":budget.max_calls,"calls":budget.model_calls,"tokens":budget.tokens(),"max_tokens":budget.max_tokens,"max_debug_steps":budget.max_debug,"debug_steps":budget.debug_steps,"max_wall_time_seconds":budget.max_wall,"elapsed_seconds":budget.elapsed()},"environment":environment_metadata(),"git_sha":git_sha(),"execution_mode":mode,"status":status}
     return record,final
