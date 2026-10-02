@@ -89,8 +89,10 @@ def preflight(mode: str) -> dict[str, Any]:
             failures.append(str(exc))
         if not protocol.get("reproducibility", {}).get("immutable_results"):
             failures.append("Immutable results are not enabled")
+    current_git=git_sha()
+    if mode=="real" and current_git=="UNAVAILABLE": failures.append("Git SHA is unavailable")
     return {"status": "PASS" if not failures else "FAIL", "mode": mode, "failures": failures,
-            "git_sha": git_sha(), "config_hash": config_hash(protocol),
+            "git_sha": current_git, "config_hash": config_hash(protocol),
             "environment": environment_metadata()}
 
 def candidate_set_hash(candidates: list[str]) -> str:
