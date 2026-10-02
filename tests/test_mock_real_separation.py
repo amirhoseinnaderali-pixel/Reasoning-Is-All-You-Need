@@ -6,8 +6,8 @@ def test_non_real_artifact_cannot_claim_solved(tmp_path,monkeypatch):
     r=tmp_path/"results";(r/"x").mkdir(parents=True)
     row={"schema_version":"2.0","experiment_id":"EXP-001","run_id":"x","task_id":"t","seed":1,
          "method":"single_pass","candidate_set_hash":"0"*64,"config_hash":"x","benchmark_hash":"x",
-         "model_config_hash":"x","model_revision":"gemini-2.5-flash","candidate_count":1,
-         "generated_candidate_count":1,"visible_test_hash":"1"*64,"hidden_test_hash":None,
+         "dependency_lock_hash":"0"*64,"model_config_hash":"x","model_revision":"gemini-2.5-flash",
+         "candidate_count":1,"generated_candidate_count":1,"visible_test_hash":"1"*64,"hidden_test_hash":None,
          "model_calls":1,"token_usage":[],"refinement_debug_steps":0,"visible_evaluation":{},
          "hidden_evaluation":{},"solved":True,"failure_type":None,"wall_clock_seconds":0,
          "budget_usage":{},"environment":{},"git_sha":"x","execution_mode":"smoke","status":"VALIDATION_ONLY"}
