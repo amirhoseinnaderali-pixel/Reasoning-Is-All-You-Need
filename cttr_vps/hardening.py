@@ -23,6 +23,15 @@ def require_frozen_benchmark(manifest:dict[str,Any])->str:
     bundle=ROOT/"benchmark/materialized.json"
     if not bundle.exists():raise RuntimeError("Frozen benchmark bundle is missing")
     if sha256_file(bundle)!=material:raise RuntimeError("Benchmark materialization hash mismatch")
+    bundle_data=json.loads(bundle.read_text(encoding="utf-8"));bundle_tasks=bundle_data.get("tasks")
+    if not isinstance(bundle_tasks,list) or len(bundle_tasks)!=len(tasks):raise RuntimeError("Benchmark task population mismatch")
+    meta={str(x["task_id"]):x for x in tasks}
+    for task in bundle_tasks:
+        task_id=str(task.get("task_id"))
+        if task_id not in meta:raise RuntimeError(f"Benchmark task missing from manifest: {task_id}")
+        if "hidden_tests" in task:raise RuntimeError("Frozen benchmark bundle contains hidden tests")
+        actual=sha256_bytes(canonical(task.get("visible_tests",[])))
+        if actual!=meta[task_id].get("visible_hash"):raise RuntimeError(f"Visible-test hash mismatch for {task_id}")
     if manifest.get("task_count")!=len(tasks):raise RuntimeError("Benchmark task_count mismatch")
     for task in tasks:
         for key in ("task_id","visible_hash","hidden_hash"):
