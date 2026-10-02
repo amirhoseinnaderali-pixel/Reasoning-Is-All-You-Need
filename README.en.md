@@ -8,7 +8,7 @@ At a high level:
 - **Benchmark**: evaluated on **IOI 2010 Day 1 – Problem C: “Quality of Living”** and other IOI‑style tasks  
 - **Quality signal**: the **first 4 runs** on this benchmark are **fully correct** and show **high‑quality C++ code** generated end‑to‑end  
 - **Test‑time computation**: uses a **multi‑round, multi‑model planning loop** where models share and refine each other’s solutions until they reach a consensus  
-- **Claim**: given enough compute and API budget, this system can realistically reach **~80% success** on this IOI benchmark; current limitations come mainly from **API rate limits and cost**, not from the core algorithmic capabilities.
+- **Recorded result**: the CTTR-VPS arm reached **25% full-test correctness** in the reported study, versus **5%** for the single-pass baseline; uncertainty intervals are reported in the main README.
 
 ---
 
@@ -470,9 +470,9 @@ The **first 4 evaluation results** in the Hugging Face Space correspond to real 
 - Produces correct algorithms  
 - Generates **fully accepted C++ implementations** from end to end.
 
-Based on the current architecture and the quality of the generated solutions, **I claim that this system can realistically reach around 80% success on this IOI benchmark**, under sufficient compute and API budget.  
+The older ~80% success statement is not treated as a measured benchmark result. The current repository reports the completed study's measured full-test correctness instead.  
 However, **strict API rate limits and cost constraints** make running the full benchmark at scale time‑consuming in practice.  
-Even so, the **4 completed runs** already illustrate the **high quality of the generated C++ code** and give an early signal of the system’s potential performance on the full benchmark.
+The completed study results are documented in the main README and RESULTS.md, together with their uncertainty and methodological limitations.
 
 #### Test‑Time Computation & Multi‑Model Consensus (New Idea)
 
