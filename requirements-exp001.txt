@@ -1,0 +1,3 @@
+google-genai==2.27.0
+PyYAML==6.0.3
+pytest==9.1.1
