@@ -17,27 +17,38 @@ def load_manifest()->dict[str,Any]:
     data=json.loads(MANIFEST.read_text(encoding="utf-8"))
     if not isinstance(data,dict):raise RuntimeError("benchmark/manifest.json is invalid")
     return data
-def require_frozen_benchmark(manifest:dict[str,Any])->str:
-    if manifest.get("status")!="FROZEN":raise RuntimeError("Benchmark is not frozen")
-    material=str(manifest.get("materialization_sha256") or "");tasks=manifest.get("tasks")
-    if not material or not isinstance(tasks,list) or not tasks:raise RuntimeError("Benchmark materialization hash/task population is incomplete")
+def verify_public_materialization(manifest:dict[str,Any])->dict[str,Any]:
+    if manifest.get("benchmark_id")!="CTTR-VPS-IOI":raise RuntimeError("Unexpected benchmark id")
     bundle=ROOT/"benchmark/materialized.json"
-    if not bundle.exists():raise RuntimeError("Frozen benchmark bundle is missing")
+    if not bundle.exists():raise RuntimeError("Public benchmark materialization is missing")
+    material=str(manifest.get("materialization_sha256") or "")
+    if not material:raise RuntimeError("Public benchmark materialization hash is missing")
     if sha256_file(bundle)!=material:raise RuntimeError("Benchmark materialization hash mismatch")
-    bundle_data=json.loads(bundle.read_text(encoding="utf-8"));bundle_tasks=bundle_data.get("tasks")
-    if not isinstance(bundle_tasks,list) or len(bundle_tasks)!=len(tasks):raise RuntimeError("Benchmark task population mismatch")
-    meta={str(x["task_id"]):x for x in tasks}
-    for task in bundle_tasks:
-        task_id=str(task.get("task_id"))
-        if task_id not in meta:raise RuntimeError(f"Benchmark task missing from manifest: {task_id}")
-        if "hidden_tests" in task:raise RuntimeError("Frozen benchmark bundle contains hidden tests")
-        actual=sha256_bytes(canonical(task.get("visible_tests",[])))
-        if actual!=meta[task_id].get("visible_hash"):raise RuntimeError(f"Visible-test hash mismatch for {task_id}")
-    if manifest.get("task_count")!=len(tasks):raise RuntimeError("Benchmark task_count mismatch")
+    data=json.loads(bundle.read_text(encoding="utf-8"));tasks=data.get("tasks")
+    meta=manifest.get("tasks")
+    if not isinstance(tasks,list) or not isinstance(meta,list):raise RuntimeError("Benchmark task materialization/manifest tasks are invalid")
+    if len(tasks)!=len(meta) or manifest.get("task_count")!=len(meta):raise RuntimeError("Benchmark task population mismatch")
+    by_id={str(x.get("task_id")):x for x in meta}
     for task in tasks:
-        for key in ("task_id","visible_hash","hidden_hash"):
-            if not task.get(key):raise RuntimeError(f"Benchmark task missing {key}")
-    return material
+        tid=str(task.get("task_id"))
+        if tid not in by_id:raise RuntimeError(f"Task missing from manifest: {tid}")
+        if "hidden_tests" in task and task.get("hidden_tests") not in (None,[]):raise RuntimeError(f"Public materialization leaked hidden tests: {tid}")
+        visible=task.get("visible_tests",[])
+        if sha256_bytes(canonical(visible))!=by_id[tid].get("visible_test_hash"):raise RuntimeError(f"Visible-test hash mismatch for {tid}")
+        task_copy=dict(task);task_copy.pop("task_hash",None)
+        if sha256_bytes(canonical(task_copy))!=by_id[tid].get("task_hash"):raise RuntimeError(f"Task hash mismatch for {tid}")
+        if task.get("source_provenance",{}).get("upstream_blob_sha")!=manifest.get("provenance",{}).get("upstream_blob_sha"):raise RuntimeError(f"Source provenance mismatch for {tid}")
+    return {"status":"PASS","task_count":len(tasks),"materialization_sha256":material}
+def require_frozen_benchmark(manifest:dict[str,Any])->str:
+    public=verify_public_materialization(manifest)
+    if manifest.get("status")!="FROZEN":raise RuntimeError("Benchmark is not fully frozen: hidden-test artifact is still pending")
+    if manifest.get("materialization_sha256")!=public["materialization_sha256"]:raise RuntimeError("Frozen benchmark hash mismatch")
+    for task in manifest.get("tasks",[]):
+        for key in ("task_id","task_hash","visible_test_hash","hidden_test_hash"):
+            if not task.get(key):raise RuntimeError(f"Frozen benchmark task missing {key}")
+    hidden=manifest.get("hidden_tests",{})
+    if hidden.get("status")!="FROZEN":raise RuntimeError("Hidden-test artifact is not frozen")
+    return public["materialization_sha256"]
 def git_sha()->str:
     try:return subprocess.check_output(["git","rev-parse","HEAD"],cwd=ROOT,text=True).strip()
     except Exception:return "UNAVAILABLE"
@@ -65,8 +76,10 @@ def hidden_path()->Path:
     except ValueError:return p
     raise RuntimeError("Hidden tests must not live inside the repository")
 def preflight(mode:str)->dict[str,Any]:
-    protocol=load_protocol();manifest=load_manifest();failures=[];lock_hash=None
+    protocol=load_protocol();manifest=load_manifest();failures=[];lock_hash=None;public_check=None
     try:lock_hash=dependency_lock_hash(protocol)
+    except Exception as exc:failures.append(str(exc))
+    try:public_check=verify_public_materialization(manifest)
     except Exception as exc:failures.append(str(exc))
     if mode=="real":
         try:require_frozen_benchmark(manifest)
@@ -83,6 +96,6 @@ def preflight(mode:str)->dict[str,Any]:
             if not protocol.get("reproducibility",{}).get("immutable_results"):failures.append("Immutable results are not enabled")
     current_git=git_sha()
     if mode=="real" and current_git=="UNAVAILABLE":failures.append("Git SHA is unavailable")
-    return {"status":"PASS" if not failures else "FAIL","mode":mode,"failures":failures,"git_sha":current_git,"config_hash":config_hash(protocol),"dependency_lock_hash":lock_hash,"environment":environment_metadata()}
+    return {"status":"PASS" if not failures else "FAIL","mode":mode,"failures":failures,"git_sha":current_git,"config_hash":config_hash(protocol),"dependency_lock_hash":lock_hash,"public_materialization":public_check,"environment":environment_metadata()}
 def candidate_set_hash(candidates:list[str])->str:return sha256_bytes(canonical(candidates))
 def run_id()->str:return str(uuid.uuid4())
