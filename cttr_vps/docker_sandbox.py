@@ -7,31 +7,54 @@ class DockerSandbox:
         if "@" not in image:raise RuntimeError("Execution image must be digest pinned")
         self.image=image;self.timeout_s=timeout_s;self.memory_mb=memory_mb;self.cpus=cpus;self.pids_limit=pids_limit
     def _build_cmd(self,root:Path)->list[str]:
-        wrapper="set -eu; g++ -std=c++17 -O2 -Wall -Wextra /workspace/solution.cpp -o /workspace/solution 2>/workspace/compile.err || { cat /workspace/compile.err; exit 41; }; python3 /workspace/runner.py"
+        wrapper="set -eu; g++ -std=c++17 -O2 -Wall -Wextra /workspace/solution.cpp -o /workspace/solution 2>/workspace/compile.err || { cat /workspace/compile.err; exit 41; }; bash /workspace/runner.sh"
         return ["docker","run","--rm","--network","none","--read-only","--cap-drop","ALL","--security-opt","no-new-privileges:true","--cpus",str(self.cpus),"--memory",f"{self.memory_mb}m","--pids-limit",str(self.pids_limit),"--tmpfs","/tmp:rw,nosuid,nodev,size=64m","-v",f"{root}:/workspace:rw",self.image,"bash","-lc",wrapper]
     def evaluate(self,code:str,tests:list[dict[str,Any]])->dict[str,Any]:
         if not tests:return {"compiled":False,"tests_passed":0,"tests_failed":0,"total_tests":0,"all_passed":False,"failure_type":"no_tests","tests":[]}
         with tempfile.TemporaryDirectory(prefix="cttr-vps-") as td:
-            root=Path(td);(root/"solution.cpp").write_text(code);(root/"tests.json").write_text(json.dumps(tests))
-            runner="""import json,subprocess
-t=json.load(open("/workspace/tests.json"))
-r=[]
-for i,x in enumerate(t,1):
-    try:
-        p=subprocess.run(["/workspace/solution"],input=str(x.get("input","")).encode(),stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=5)
-        a=p.stdout.decode(errors="replace").strip();e=str(x.get("expected_output",x.get("output",""))).strip()
-        r.append({"test_index":i,"passed":p.returncode==0 and a==e,"actual":a,"expected":e,"stderr":p.stderr.decode(errors="replace"),"returncode":p.returncode,"timeout":False})
-    except subprocess.TimeoutExpired:
-        r.append({"test_index":i,"passed":False,"actual":"","expected":str(x.get("expected_output",x.get("output",""))).strip(),"stderr":"execution timeout","returncode":-1,"timeout":True})
-print(json.dumps(r))
+            root=Path(td);(root/"solution.cpp").write_text(code)
+            lines=[]
+            for i,t in enumerate(tests,1):
+                inf=f"input_{i}.txt";exf=f"expected_{i}.txt"
+                (root/inf).write_text(str(t.get("input","")));(root/exf).write_text(str(t.get("expected_output",t.get("output",""))))
+                lines.append(f"{i}\t{inf}\t{exf}")
+            (root/"manifest.tsv").write_text("\n".join(lines)+"\n")
+            runner="""#!/usr/bin/env bash
+set -u
+: > /workspace/results.tsv
+while IFS=$'\t' read -r idx input_file expected_file; do
+  [ -z "$idx" ] && continue
+  status="wrong_output"; rc=0
+  if timeout 5s /workspace/solution < "/workspace/$input_file" > "/tmp/out_$idx" 2> "/tmp/err_$idx"; then
+    rc=0
+  else
+    rc=$?
+  fi
+  if [ "$rc" -eq 124 ]; then
+    status="timeout"
+  elif [ "$rc" -ne 0 ]; then
+    status="runtime_error"
+  elif cmp -s "/tmp/out_$idx" "/workspace/$expected_file"; then
+    status="passed"
+  else
+    status="wrong_output"
+  fi
+  printf '%s\t%s\t%s\n' "$idx" "$status" "$rc" >> /workspace/results.tsv
+done < /workspace/manifest.tsv
+cat /workspace/results.tsv
 """
-            (root/"runner.py").write_text(runner)
+            (root/"runner.sh").write_text(runner);(root/"runner.sh").chmod(0o755)
             start=time.perf_counter()
             try:p=subprocess.run(self._build_cmd(root),capture_output=True,text=True,timeout=self.timeout_s+20)
             except subprocess.TimeoutExpired:return {"compiled":True,"tests_passed":0,"tests_failed":len(tests),"total_tests":len(tests),"all_passed":False,"failure_type":"timeout","tests":[]}
             if p.returncode==41:return {"compiled":False,"tests_passed":0,"tests_failed":len(tests),"total_tests":len(tests),"all_passed":False,"failure_type":"compile_error","tests":[],"wall_ms":(time.perf_counter()-start)*1000}
             if p.returncode in (137,-9):return {"compiled":True,"tests_passed":0,"tests_failed":len(tests),"total_tests":len(tests),"all_passed":False,"failure_type":"memory_limit","tests":[],"wall_ms":(time.perf_counter()-start)*1000}
             if p.returncode!=0:return {"compiled":True,"tests_passed":0,"tests_failed":len(tests),"total_tests":len(tests),"all_passed":False,"failure_type":"sandbox_error","tests":[],"wall_ms":(time.perf_counter()-start)*1000}
-            rows=json.loads(p.stdout.strip().splitlines()[-1]);passed=sum(1 for x in rows if x["passed"])
-            failure="none" if passed==len(rows) else ("timeout" if any(x.get("timeout") for x in rows) else ("runtime_error" if any(x["returncode"]!=0 for x in rows) else "wrong_output"))
+            rows=[]
+            for line in p.stdout.splitlines():
+                parts=line.split("\t")
+                if len(parts)!=3:continue
+                idx,status,rc=parts;rows.append({"test_index":int(idx),"passed":status=="passed","failure_type":None if status=="passed" else status,"returncode":int(rc)})
+            passed=sum(1 for x in rows if x["passed"])
+            failure="none" if passed==len(rows) else ("timeout" if any(x["failure_type"]=="timeout" for x in rows) else ("runtime_error" if any(x["failure_type"]=="runtime_error" for x in rows) else "wrong_output"))
             return {"compiled":True,"tests_passed":passed,"tests_failed":len(rows)-passed,"total_tests":len(rows),"all_passed":bool(rows) and passed==len(rows),"failure_type":failure,"tests":rows,"wall_ms":(time.perf_counter()-start)*1000}
