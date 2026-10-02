@@ -28,7 +28,8 @@ execution:
   cpus: 1.0
   memory_mb: 512
   pids_limit: 64
-  timeout_s: 5
+  task_timeout_s: 30
+  test_timeout_s: 5
   compiler: g++ -std=c++17 -O2 -Wall -Wextra
 conditions:
   C0:
