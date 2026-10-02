@@ -1,0 +1,10 @@
+{
+  "publisher": "Humanity's Last Code Exam",
+  "dataset": "HumanLastCodeExam/ioi",
+  "upstream_repository": "Humanity-s-Last-Code-Exam/HLCE",
+  "upstream_path": "HLCE/IOI_scripts/examples/ioi_contest_problems_chatgpt-4o-latest.jsonl",
+  "upstream_blob_sha": "01bba2e3569bbec3dfa22990b8c0f0394af79d39",
+  "upstream_source_sha256": "824fbb624efbd595499f51c78e24ef47a9b4da2612208c1f15f68843daa59db0",
+  "retrieved_from": "GitHub immutable blob",
+  "task_rows": 93
+}
