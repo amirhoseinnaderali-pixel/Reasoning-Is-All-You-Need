@@ -2,42 +2,49 @@
 
 ## Collective Test-Time Reasoning for Verified Program Synthesis
 
-CTTR-VPS is the research identity of this repository. The implementation studies inference-time computation for C++ program synthesis on IOI-style algorithmic tasks.
-
 ### Research question
 How does additional inference-time computation change the probability of producing an objectively correct executable solution?
 
-### Core pipeline
-problem preprocessing -> multi-model planning -> multi-candidate code generation -> optimization -> objective candidate selection -> iterative execution-based debugging.
+### Frozen research instrument
 
-### Controlled evaluation
-The experiment harness provides single-pass generation, multi-sample generation, self-refinement, execution-based refinement, and CTTR-VPS. The primary metric is objective test-set correctness. Candidate count, model calls, debugging steps, latency, and cost proxies are also recorded.
+EXP-001 explicitly separates:
+
+- **C0** Single-pass generation
+- **C1** Multi-sample generation + objective visible-test selection
+- **C2** Self-refinement without execution feedback
+- **C3** Execution-based refinement using visible tests
+- **C4** CTTR-VPS: planning → candidate generation → deterministic optimization/deduplication → objective visible-test selection → execution-based debugging → final candidate
+
+Exact model, generation parameters, seed, candidate budgets, token budgets, Docker image, runtime limits, and reproducibility fields are frozen in `configs/exp001.yaml`.
+
+### Scientific status
+
+- **IMPLEMENTED:** frozen protocol, objective evaluation architecture, controlled budgets, immutable result schema, secure Docker sandbox, real execution path, validation/smoke/real modes, audit and analysis infrastructure.
+- **VALIDATED:** unit/invariant tests are part of CI.
+- **SCIENTIFICALLY AUDITED:** machine-readable audit is fail-closed.
+- **READY FOR REAL EXECUTION:** **BLOCKED** until the benchmark is materialized and hashed and the external hidden-test artifact is supplied.
+- **REAL SMOKE PASSED:** not claimed.
+- **EXP-001 EXECUTED:** not claimed.
+
+### Run modes
+
+Validation performs software-only invariant tests:
+
+`python scripts/run_experiment.py --mode validation`
+
+Smoke uses a real model call and real Docker sandbox against the validation-only smoke fixture:
+
+`export GOOGLE_API_KEY='...'`
+`python scripts/run_experiment.py --mode smoke --method single_pass`
+
+Real mode requires frozen benchmark materialization, credentials, Docker, and isolated hidden tests:
+
+`python scripts/run_experiment.py --mode real`
+
+No mock fallback exists in real mode.
 
 ### Results
-**No new controlled benchmark result is claimed yet.** Historical successful examples and the research hardening pass do not establish a general success rate.
 
-### Run
-Set credentials outside Git:
+No empirical benchmark accuracy, solved-rate, significance result, or performance claim is reported from historical runs. Smoke artifacts are explicitly `VALIDATION_ONLY` and are not EXP-001 evidence.
 
-    export GOOGLE_API_KEYS='key1,key2,...'
-    export OLLAMA_API_KEYS='key1,key2,...'
-
-Install:
-
-    pip install -r requirements.txt
-
-Run:
-
-    python scripts/run_experiment.py --config configs/baseline_single_pass.yaml
-
-Aggregate:
-
-    python scripts/evaluate.py --results results
-
-### Limitations
-Visible samples are not hidden/full-judge evaluation. Model/provider versions and API availability can change. Additional test-time computation has an explicit latency/cost trade-off.
-
-See docs/architecture.md, docs/experiments.md, docs/result_schema.md, and docs/research_positioning.md.
-
-### History
-The repository was originally named Reasoning-Is-All-You-Need. Original modules and research artifacts are retained.
+See `docs/scientific_protocol.md`, `docs/benchmark_provenance.md`, `docs/result_schema_v2.md`, `docs/reproducibility.md`, and `docs/audit.md`.
