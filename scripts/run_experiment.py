@@ -26,8 +26,8 @@ async def main():
     p=argparse.ArgumentParser();p.add_argument("--mode",choices=["validation","smoke","real"],required=True);p.add_argument("--method",choices=["single_pass","multi_sample","self_refinement","execution_refinement","cttr_vps"]);p.add_argument("--output-dir",default="results");a=p.parse_args()
     if a.mode=="validation":
         raise SystemExit(subprocess.run([sys.executable,"-m","pytest","-q","tests"],check=False).returncode)
-    check=preflight("real" if a.mode=="real" else "validation")
-    if a.mode=="real" and check["status"]!="PASS":print(json.dumps(check,indent=2));raise SystemExit(2)
+    check=preflight(a.mode)
+    if a.mode in {"smoke","real"} and check["status"]!="PASS":print(json.dumps(check,indent=2));raise SystemExit(2)
     tasks=load_tasks(a.mode);protocol=load_protocol();seeds=[int(x) for x in protocol["seeds"]];methods=[a.method] if a.method else list(protocol["conditions"].keys())
     from cttr_vps.frozen_runner import run_real_or_smoke
     from cttr_vps.result_schema_v2 import write_immutable
