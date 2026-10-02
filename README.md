@@ -2,42 +2,65 @@
 
 ## Collective Test-Time Reasoning for Verified Program Synthesis
 
-CTTR-VPS is the research identity of this repository. The implementation studies inference-time computation for C++ program synthesis on IOI-style algorithmic tasks.
-
 ### Research question
 How does additional inference-time computation change the probability of producing an objectively correct executable solution?
 
-### Core pipeline
-problem preprocessing -> multi-model planning -> multi-candidate code generation -> optimization -> objective candidate selection -> iterative execution-based debugging.
+### Frozen research instrument
 
-### Controlled evaluation
-The experiment harness provides single-pass generation, multi-sample generation, self-refinement, execution-based refinement, and CTTR-VPS. The primary metric is objective test-set correctness. Candidate count, model calls, debugging steps, latency, and cost proxies are also recorded.
+EXP-001 explicitly separates:
 
-### Results
-**No new controlled benchmark result is claimed yet.** Historical successful examples and the research hardening pass do not establish a general success rate.
+- **C0** Single-pass generation
+- **C1** Multi-sample generation + objective visible-test selection
+- **C2** Self-refinement without execution feedback
+- **C3** Execution-based refinement using visible tests
+- **C4** CTTR-VPS: planning → candidate generation → deterministic optimization/deduplication → objective visible-test selection → execution-based debugging → final candidate
 
-### Run
-Set credentials outside Git:
+Exact model/revision, retry policy, generation parameters, seed, candidate budgets, token budgets, wall-clock budget, Docker image, runtime limits, and reproducibility fields are frozen in `configs/exp001.yaml`.
 
-    export GOOGLE_API_KEYS='key1,key2,...'
-    export OLLAMA_API_KEYS='key1,key2,...'
+### Scientific status
 
-Install:
+- **IMPLEMENTED:** frozen protocol, objective evaluation architecture, controlled budgets, immutable result schema, secure Docker sandbox, real execution path, validation/smoke/real modes, audit and analysis infrastructure.
+- **VALIDATED:** validation and CI gates are implemented; successful CI completion is not yet claimed here.
+- **SCIENTIFICALLY AUDITED:** fail-closed audit implemented; the current audit is expected to remain **FAIL** until the benchmark is frozen.
+- **PUBLIC BENCHMARK MATERIALIZATION:** **FROZEN** — 93 tasks from the recovered HLCE IOI source are materialized and hashed.
+- **READY FOR REAL EXECUTION:** **BLOCKED** until the external hidden-test artifact is supplied and hashed for every task.
+- **REAL SMOKE PASSED:** not claimed.
+- **EXP-001 EXECUTED:** not claimed.
 
-    pip install -r requirements.txt
+### Run modes
 
-Run:
+Validation performs software-only invariant tests:
 
-    python scripts/run_experiment.py --config configs/baseline_single_pass.yaml
+`python scripts/run_experiment.py --mode validation`
 
-Aggregate:
+Smoke uses the real model adapter and real Docker sandbox against the validation-only smoke fixture:
 
-    python scripts/evaluate.py --results results
+`export GOOGLE_API_KEY='...'`
+`python scripts/run_experiment.py --mode smoke --method single_pass`
 
-### Limitations
-Visible samples are not hidden/full-judge evaluation. Model/provider versions and API availability can change. Additional test-time computation has an explicit latency/cost trade-off.
+Real mode requires frozen benchmark materialization, credentials, Docker, and isolated hidden tests:
 
-See docs/architecture.md, docs/experiments.md, docs/result_schema.md, and docs/research_positioning.md.
+`python scripts/run_experiment.py --mode real`
 
-### History
-The repository was originally named Reasoning-Is-All-You-Need. Original modules and research artifacts are retained.
+No mock fallback exists in real mode.
+
+### Historical research case study
+
+The repository preserves a real historical CTTR-VPS artifact corpus for four IOI tasks:
+
+- E. Memory
+- C. Quality of Living
+- E. Friend
+- A. Arranging Shoes
+
+Across these four cases, the repository preserves **14 planning records and 54 labeled C++ code variants**. These are direct repository artifacts.
+
+The historical repository does **not** preserve final judge logs, scores, runtimes, or complete API-call telemetry, so no historical success rate is reported. The old README's “first 4 runs fully correct” and “~80% success” statements are treated as documentation-only claims, not measured results.
+
+[Read the historical research report](docs/research_report.md).
+
+### Current hardened protocol
+
+The hardened EXP-001 path is a separate research instrument. It has **not** been executed and must remain fail-closed when required benchmark/hidden-test evidence is unavailable.
+
+See `docs/scientific_protocol.md`, `docs/benchmark_provenance.md`, `docs/result_schema_v2.md`, `docs/reproducibility.md`, and `docs/audit.md`.

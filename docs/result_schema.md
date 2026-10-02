@@ -1,25 +1,9 @@
-# Result Schema v1.0
+# Result schema v2
 
-Each run writes a machine-readable result.json.
+The canonical scientific schema is `schemas/result.schema.json` and `cttr_vps/result_schema_v2.py`.
 
-Required fields:
-- experiment_id
-- problem_id
-- method
-- models
-- candidate_count
-- model_calls
-- compiled
-- tests_passed
-- tests_failed
-- total_tests
-- solved
-- latency_ms
-- memory_mb
-- verification_attempts
-- error_type
-- wall_time_seconds
-- config
-- events
+Required provenance includes experiment/run/task/seed identity, method, candidate-set hash, configuration/model/benchmark hashes, model revision, candidate count, model calls, token usage, refinement/debug steps, visible and hidden evaluations, solved flag, failure type, wall-clock time, budget usage, environment metadata, git SHA, execution mode, and status.
 
-The solved flag means only that the final candidate passed every supplied test and at least one supplied test existed. It must not be described as hidden/full-judge acceptance without a full judge.
+Results are immutable: the writer uses exclusive file creation and refuses to overwrite an existing result artifact.
+
+Visible-test success is never described as hidden/full-judge correctness.

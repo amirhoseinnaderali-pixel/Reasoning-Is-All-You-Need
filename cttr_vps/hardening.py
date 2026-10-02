@@ -1,0 +1,101 @@
+from __future__ import annotations
+import hashlib,json,os,platform,shutil,subprocess,uuid
+from importlib.metadata import PackageNotFoundError,version
+from pathlib import Path
+from typing import Any
+import yaml
+ROOT=Path(__file__).resolve().parents[1];PROTOCOL=ROOT/"configs/exp001.yaml";MANIFEST=ROOT/"benchmark/manifest.json"
+def canonical(value:Any)->bytes:return json.dumps(value,sort_keys=True,separators=(",",":"),ensure_ascii=False).encode()
+def sha256_bytes(data:bytes)->str:return hashlib.sha256(data).hexdigest()
+def sha256_file(path:Path)->str:return sha256_bytes(path.read_bytes())
+def config_hash(config:dict[str,Any])->str:return sha256_bytes(canonical(config))
+def load_protocol()->dict[str,Any]:
+    data=yaml.safe_load(PROTOCOL.read_text(encoding="utf-8"))
+    if not isinstance(data,dict) or data.get("experiment_id")!="EXP-001":raise RuntimeError("EXP-001 protocol is missing or invalid")
+    return data
+def load_manifest()->dict[str,Any]:
+    data=json.loads(MANIFEST.read_text(encoding="utf-8"))
+    if not isinstance(data,dict):raise RuntimeError("benchmark/manifest.json is invalid")
+    return data
+def verify_public_materialization(manifest:dict[str,Any])->dict[str,Any]:
+    if manifest.get("benchmark_id")!="CTTR-VPS-IOI":raise RuntimeError("Unexpected benchmark id")
+    bundle=ROOT/"benchmark/materialized.json"
+    if not bundle.exists():raise RuntimeError("Public benchmark materialization is missing")
+    material=str(manifest.get("materialization_sha256") or "")
+    if not material:raise RuntimeError("Public benchmark materialization hash is missing")
+    if sha256_file(bundle)!=material:raise RuntimeError("Benchmark materialization hash mismatch")
+    data=json.loads(bundle.read_text(encoding="utf-8"));tasks=data.get("tasks")
+    meta=manifest.get("tasks")
+    if not isinstance(tasks,list) or not isinstance(meta,list):raise RuntimeError("Benchmark task materialization/manifest tasks are invalid")
+    if len(tasks)!=len(meta) or manifest.get("task_count")!=len(meta):raise RuntimeError("Benchmark task population mismatch")
+    by_id={str(x.get("task_id")):x for x in meta}
+    for task in tasks:
+        tid=str(task.get("task_id"))
+        if tid not in by_id:raise RuntimeError(f"Task missing from manifest: {tid}")
+        if "hidden_tests" in task and task.get("hidden_tests") not in (None,[]):raise RuntimeError(f"Public materialization leaked hidden tests: {tid}")
+        visible=task.get("visible_tests",[])
+        if sha256_bytes(canonical(visible))!=by_id[tid].get("visible_test_hash"):raise RuntimeError(f"Visible-test hash mismatch for {tid}")
+        task_copy=dict(task);task_copy.pop("task_hash",None)
+        if sha256_bytes(canonical(task_copy))!=by_id[tid].get("task_hash"):raise RuntimeError(f"Task hash mismatch for {tid}")
+        if task.get("source_provenance",{}).get("upstream_blob_sha")!=manifest.get("provenance",{}).get("upstream_blob_sha"):raise RuntimeError(f"Source provenance mismatch for {tid}")
+    return {"status":"PASS","task_count":len(tasks),"materialization_sha256":material}
+def require_frozen_benchmark(manifest:dict[str,Any])->str:
+    public=verify_public_materialization(manifest)
+    if manifest.get("status")!="FROZEN":raise RuntimeError("Benchmark is not fully frozen: hidden-test artifact is still pending")
+    if manifest.get("materialization_sha256")!=public["materialization_sha256"]:raise RuntimeError("Frozen benchmark hash mismatch")
+    for task in manifest.get("tasks",[]):
+        for key in ("task_id","task_hash","visible_test_hash","hidden_test_hash"):
+            if not task.get(key):raise RuntimeError(f"Frozen benchmark task missing {key}")
+    hidden=manifest.get("hidden_tests",{})
+    if hidden.get("status")!="FROZEN":raise RuntimeError("Hidden-test artifact is not frozen")
+    return public["materialization_sha256"]
+def git_sha()->str:
+    try:return subprocess.check_output(["git","rev-parse","HEAD"],cwd=ROOT,text=True).strip()
+    except Exception:return "UNAVAILABLE"
+def dependency_lock_hash(protocol:dict[str,Any])->str:
+    path=ROOT/protocol["dependencies"]["lock_file"]
+    if sha256_file(path)!=protocol["dependencies"]["lock_sha256"]:raise RuntimeError("Dependency lock hash mismatch")
+    return protocol["dependencies"]["lock_sha256"]
+def dependency_versions()->dict[str,str|None]:
+    out={}
+    for pkg in ("google-genai","PyYAML","pytest"):
+        try:out[pkg]=version(pkg)
+        except PackageNotFoundError:out[pkg]=None
+    return out
+def environment_metadata()->dict[str,Any]:
+    meta={"python":platform.python_version(),"platform":platform.platform(),"machine":platform.machine(),"docker":shutil.which("docker") or None,"dependencies":dependency_versions()}
+    if meta["docker"]:
+        try:meta["docker_version"]=subprocess.check_output(["docker","version","--format","{{.Server.Version}}"],text=True,stderr=subprocess.DEVNULL).strip()
+        except Exception:meta["docker_version"]="UNAVAILABLE"
+    return meta
+def hidden_path()->Path:
+    raw=os.getenv("CTTR_HIDDEN_TESTS_PATH","")
+    if not raw:raise RuntimeError("CTTR_HIDDEN_TESTS_PATH is required for real execution")
+    p=Path(raw).resolve()
+    try:p.relative_to(ROOT.resolve())
+    except ValueError:return p
+    raise RuntimeError("Hidden tests must not live inside the repository")
+def preflight(mode:str)->dict[str,Any]:
+    protocol=load_protocol();manifest=load_manifest();failures=[];lock_hash=None;public_check=None
+    try:lock_hash=dependency_lock_hash(protocol)
+    except Exception as exc:failures.append(str(exc))
+    try:public_check=verify_public_materialization(manifest)
+    except Exception as exc:failures.append(str(exc))
+    if mode=="real":
+        try:require_frozen_benchmark(manifest)
+        except Exception as exc:failures.append(str(exc))
+    if mode in {"smoke","real"}:
+        if not protocol.get("model",{}).get("model_revision"):failures.append("Model revision is not frozen")
+        if "@" not in protocol.get("execution",{}).get("image",""):failures.append("Execution image is not digest pinned")
+        if not (os.getenv("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEYS")):failures.append("Google credentials are missing")
+        if shutil.which("docker") is None:failures.append("Docker is unavailable")
+        elif environment_metadata().get("docker_version") in {None,"UNAVAILABLE"}:failures.append("Docker daemon is unavailable")
+        if mode=="real":
+            try:hidden_path()
+            except Exception as exc:failures.append(str(exc))
+            if not protocol.get("reproducibility",{}).get("immutable_results"):failures.append("Immutable results are not enabled")
+    current_git=git_sha()
+    if mode=="real" and current_git=="UNAVAILABLE":failures.append("Git SHA is unavailable")
+    return {"status":"PASS" if not failures else "FAIL","mode":mode,"failures":failures,"git_sha":current_git,"config_hash":config_hash(protocol),"dependency_lock_hash":lock_hash,"public_materialization":public_check,"environment":environment_metadata()}
+def candidate_set_hash(candidates:list[str])->str:return sha256_bytes(canonical(candidates))
+def run_id()->str:return str(uuid.uuid4())

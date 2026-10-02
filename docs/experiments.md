@@ -1,41 +1,39 @@
 # Experimental Protocol
 
-## Compute-budget comparison
+## Research question
 
-Evaluate controlled budgets such as:
-- 1 generated candidate
-- 5 generated candidates
-- 20 generated candidates
-- 20 candidates plus iterative debugging
+How does additional inference-time computation change the probability of producing an objectively correct executable solution?
 
-Do not compare methods while silently changing model pools, temperatures, problem subsets, compiler, timeout, memory cap, or test set.
+## Frozen EXP-001 conditions
 
-## Required reporting
+| Condition | Controlled inference-time budget | Candidate selection |
+|---|---:|---|
+| C0 | 1 model call | final candidate |
+| C1 | 8 model calls | objective visible-test selection |
+| C2 | 4 model calls | final self-refined candidate |
+| C3 | 4 model calls | final execution-refined candidate |
+| C4 | 13 model calls | planning + 8 candidates + objective selection + up to 3 debug calls |
 
-Primary metric:
-- task-level objective verifier pass rate
+The exact seed, model revision, token parameters, execution image, runtime limits, and budget enforcement are in `configs/exp001.yaml`.
+
+## Evaluation order
+
+Generation and refinement receive visible tests only. The final candidate is selected before hidden tests are loaded. Hidden evaluation is a separate execution step and is never used to generate, select, optimize, or debug a candidate.
+
+## Reporting
+
+Primary:
+- task-level hidden-test solved rate
 
 Secondary:
 - compilation rate
-- supplied-test pass rate
-- model calls
-- debugging steps
+- visible-test pass rate
+- hidden failure-mode distribution
+- model calls and token usage
+- refinement/debug steps
 - wall-clock time
-- API/token cost proxy when available
+- compute/accuracy trade-off
+- paired per-task/per-seed comparison against C0
+- uncertainty intervals
 
-## Ablations
-
-1. No multi-model planning.
-2. No iterative refinement.
-3. No execution feedback.
-4. No optimization.
-5. Reduced candidate count.
-6. Reduced debug budget.
-7. No multi-view preprocessing.
-8. Final verification disabled (diagnostic only; never treated as a correctness benchmark).
-
-## Scientific integrity
-
-Historical successful runs are exploratory evidence. They should not be mixed with controlled benchmark results.
-
-Before paper claims, run the complete matrix over a fixed problem population and report uncertainty.
+Do not rank or declare a winning method before real execution. Historical runs are not controlled benchmark evidence.

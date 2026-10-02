@@ -1,20 +1,18 @@
 # CTTR-VPS Architecture
 
-Research question: how does additional inference-time computation change the probability of producing an objectively correct executable solution?
+The scientific pipeline is:
 
-The repository's hardened pipeline is:
+problem preprocessing
+→ planning
+→ candidate generation
+→ optimization/deduplication
+→ objective candidate selection using visible tests
+→ execution-based debugging/refinement
+→ final candidate
+→ independent hidden evaluation
 
-problem preprocessing -> multi-model planning -> candidate generation -> optimization -> objective execution-based candidate selection -> iterative execution-based debugging.
+The repository contains explicit C0–C4 conditions. Visible tests are the only tests available before final-candidate selection. Hidden tests are loaded only after selection.
 
-The experiment harness adds explicit methods:
-- single-pass
-- multi-sample
-- self-refinement
-- execution-based refinement
-- CTTR-VPS
+The real sandbox is a digest-pinned Docker execution path with network disabled, read-only root filesystem, dropped capabilities, no-new-privileges, CPU/memory/PID limits, controlled /tmp, and execution timeouts.
 
-The primary correctness signal is objective execution, not model self-reported quality.
-
-Important limitation: the supplied tests in ioi_multi_view.json are generally visible samples. Passing them is not equivalent to hidden/full-judge acceptance.
-
-The harness writes a machine-readable result.json containing candidate count, tests passed/failed, solved flag, model calls, wall time, and error category.
+Validation mode performs software-only checks. Smoke mode uses the real model adapter and real sandbox but is always marked `VALIDATION_ONLY`. Real mode fails closed when any frozen scientific prerequisite is missing.
