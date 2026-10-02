@@ -1,77 +1,33 @@
 from __future__ import annotations
-
-import argparse
-import asyncio
-import json
-import platform
-import time
-import uuid
-from datetime import datetime, timezone
+import argparse, asyncio, json, sys
 from pathlib import Path
-import sys
+ROOT=Path(__file__).resolve().parents[1]; sys.path.insert(0,str(ROOT))
+from cttr_vps.hardening import preflight
+from cttr_vps.frozen_runner import run_real_or_smoke
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+def load_task(mode):
+    path=Path("benchmark/smoke_task.json") if mode=="smoke" else Path("benchmark/materialized.json")
+    if not path.exists(): raise RuntimeError(f"Missing benchmark materialization: {path}")
+    return json.loads(path.read_text())["tasks"][0]
 
-from cttr_vps.config import load_yaml
-from cttr_vps.methods import METHODS
-from cttr_vps.result_schema import make_record
-from cttr_vps.results import write_json
-
-
-def load_problem(config: dict):
-    dataset = Path(config.get("dataset", {}).get("path", "ioi_multi_view.json"))
-    index = int(config.get("dataset", {}).get("problem_index", 0))
-    rows = json.loads(dataset.read_text(encoding="utf-8"))
-    if not isinstance(rows, list) or not 0 <= index < len(rows):
-        raise ValueError(f"Invalid problem_index={index}")
-    return rows[index]
-
-
-async def run(config_path: str, output_override: str | None = None):
-    config = load_yaml(config_path)
-    method = str(config["method"])
-    if method not in METHODS:
-        raise ValueError(f"Unknown method: {method}")
-
-    problem = load_problem(config)
-    tests = problem.get("implementation_view", problem).get("samples", [])
-    experiment_id = str(config.get("experiment_id") or f"{method}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex[:8]}")
-    root = Path(output_override or config.get("output_dir", "results")) / experiment_id
-    root.mkdir(parents=True, exist_ok=True)
-
-    started = time.perf_counter()
-    payload = await METHODS[method](problem, tests, config, str(root))
-    wall = time.perf_counter() - started
-    evaluation = payload["evaluations"][-1]
-
-    record = make_record(
-        experiment_id=experiment_id,
-        problem_id=str(problem.get("_meta", {}).get("uuid", config.get("dataset", {}).get("problem_index"))),
-        method=method,
-        candidate_count=len(payload.get("candidates", [])),
-        model_calls=int(payload.get("model_calls", 0)),
-        wall_time_seconds=wall,
-        evaluation=evaluation,
-        config=config,
-        events=payload.get("events", []),
-        models=payload.get("models", []),
-    )
-    write_json(root / "result.json", record)
-    if payload.get("code"):
-        (root / "final_code.cpp").write_text(payload["code"], encoding="utf-8")
-    return root
-
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", required=True)
-    parser.add_argument("--output-dir")
-    args = parser.parse_args()
-    root = asyncio.run(run(args.config, args.output_dir))
-    print(root)
-
-
-if __name__ == "__main__":
-    main()
+async def main():
+    p=argparse.ArgumentParser()
+    p.add_argument("--mode",choices=["validation","smoke","real"],required=True)
+    p.add_argument("--method",choices=["single_pass","multi_sample","self_refinement","execution_refinement","cttr_vps"])
+    p.add_argument("--seed",type=int,default=20261002)
+    p.add_argument("--output-dir",default="results")
+    a=p.parse_args()
+    check=preflight("real" if a.mode=="real" else "validation")
+    if a.mode=="real" and check["status"]!="PASS":
+        print(json.dumps(check,indent=2)); raise SystemExit(2)
+    task=load_task(a.mode)
+    if a.mode=="validation": task["hidden_tests"]=[]
+    methods=[a.method] if a.method else ["single_pass","multi_sample","self_refinement","execution_refinement","cttr_vps"]
+    from cttr_vps.result_schema_v2 import write_immutable
+    for method in methods:
+        record,code=run_real_or_smoke(task,method,a.seed,a.mode,a.output_dir)
+        out=Path(a.output_dir)/record["run_id"]/method
+        write_immutable(out/"result.json",record)
+        (out/"final_code.cpp").write_text(code,encoding="utf-8")
+    print("validation_only="+str(a.mode!="real"))
+if __name__=="__main__": asyncio.run(main())
