@@ -16,7 +16,7 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: pip install -r requirements-exp001.txt
       - run: python -m compileall -q cttr_vps scripts tests
-      - run: pytest -q
+      - run: PYTHONPATH=. pytest -q
       - run: python scripts/scientific_audit.py > audit-ci.json 2>&1 || test $? -eq 1
       - run: |
           python - <<'PY'
