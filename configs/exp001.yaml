@@ -1,6 +1,9 @@
 experiment_id: EXP-001
 protocol_version: CTTR-VPS-1.0
 mode: real
+dependencies:
+  lock_file: requirements-exp001.txt
+  lock_sha256: d67e486b11e9622b56c871eda6f093298b8673157848633925d07c0711962b0b
 benchmark:
   manifest: benchmark/manifest.json
   materialization_hash_field: materialization_sha256
