@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version","experiment_id","run_id","task_id","seed","method","candidate_set_hash","config_hash","benchmark_hash","model_config_hash","model_revision","candidate_count","model_calls","token_usage","refinement_debug_steps","visible_evaluation","hidden_evaluation","solved","failure_type","wall_clock_seconds","budget_usage","environment","git_sha","execution_mode","status"],
+  "properties": {
+    "schema_version": {"const": "2.0"},
+    "experiment_id": {"const": "EXP-001"},
+    "run_id": {"type": "string"},
+    "task_id": {"type": "string"},
+    "seed": {"type": "integer"},
+    "candidate_set_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "execution_mode": {"enum": ["validation","smoke","real"]},
+    "status": {"enum": ["VALIDATION_ONLY","COMPLETED","BLOCKED","FAILED","BUDGET_VIOLATION"]}
+  },
+  "additionalProperties": true
+}
