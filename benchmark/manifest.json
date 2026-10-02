@@ -13,7 +13,7 @@
     "retrieved_from": "GitHub immutable blob",
     "task_rows": 93
   },
-  "materialization_sha256": "85b88a94b7abb62b2caa86895d2d8edf271bd7716ecb22868881ef6940c04925",
+  "materialization_sha256": "17d99388687b11bedbb7486f4e84c621b182c98244290174b7f93816e0b198a6",
   "materialization_file": "benchmark/materialized.json",
   "task_count": 93,
   "task_population_sha256": "7495ff4b9140b7cfd1634e21749f324fe8f1613717391a25cde1f039d9180ec9",
@@ -774,5 +774,5 @@
       "hidden_test_hash"
     ]
   },
-  "manifest_identity_sha256": "4e9cac2f5f22516d132c198bc0f66f612c52b4cf7c569719dfd3547ee7d8f453"
+  "manifest_identity_sha256": "e8a92d06e32a99bfe5f1a99293e8bece7a2471c8bc01af4992ae1970389e400f"
 }
