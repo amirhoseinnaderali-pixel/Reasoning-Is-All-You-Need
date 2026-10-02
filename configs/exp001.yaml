@@ -1,0 +1,72 @@
+experiment_id: EXP-001
+protocol_version: CTTR-VPS-1.0
+mode: real
+benchmark:
+  manifest: benchmark/manifest.json
+  materialization_hash_field: materialization_sha256
+model:
+  provider: google-genai
+  model_revision: gemini-2.5-flash
+  model_id: gemini-2.5-flash
+  generation:
+    temperature: 0.0
+    top_p: 1.0
+    max_output_tokens: 8192
+    seed: 20261002
+execution:
+  image: gcc:14.2.0-bookworm@sha256:82549aa8f90ada3236a8be70c74543132a76662ef33f0c3271ed802b81584a82
+  network: none
+  read_only_root: true
+  cap_drop_all: true
+  no_new_privileges: true
+  cpus: 1.0
+  memory_mb: 512
+  pids_limit: 64
+  timeout_s: 5
+  compiler: g++ -std=c++17 -O2 -Wall -Wextra
+conditions:
+  C0:
+    method: single_pass
+    candidate_count: 1
+    max_model_calls: 1
+    max_debug_steps: 0
+  C1:
+    method: multi_sample
+    candidate_count: 8
+    max_model_calls: 8
+    max_debug_steps: 0
+  C2:
+    method: self_refinement
+    candidate_count: 1
+    max_model_calls: 4
+    max_debug_steps: 3
+    refinement_rounds: 3
+  C3:
+    method: execution_refinement
+    candidate_count: 1
+    max_model_calls: 4
+    max_debug_steps: 3
+    refinement_rounds: 3
+  C4:
+    method: cttr_vps
+    candidate_count: 8
+    max_model_calls: 13
+    max_debug_steps: 3
+    planning_calls: 2
+    generation_calls: 8
+    optimization: deterministic_dedup
+budgets:
+  max_calls: 13
+  max_output_tokens_per_call: 8192
+  max_total_output_tokens: 106496
+  max_debug_steps: 3
+  max_wall_time_seconds: 1800
+seeds:
+  - 20261002
+reproducibility:
+  record_git_sha: true
+  record_config_hash: true
+  record_benchmark_hash: true
+  record_model_config_hash: true
+  record_environment: true
+  immutable_results: true
