@@ -3,7 +3,7 @@ import json,os
 from pathlib import Path
 from typing import Any
 SCHEMA_VERSION="2.0"
-REQUIRED={"schema_version","experiment_id","run_id","task_id","seed","method","candidate_set_hash","config_hash","benchmark_hash","model_config_hash","model_revision","candidate_count","generated_candidate_count","visible_test_hash","hidden_test_hash","model_calls","token_usage","refinement_debug_steps","visible_evaluation","hidden_evaluation","solved","failure_type","wall_clock_seconds","budget_usage","environment","git_sha","execution_mode","status"}
+REQUIRED={"schema_version","experiment_id","run_id","task_id","seed","method","candidate_set_hash","config_hash","benchmark_hash","dependency_lock_hash","model_config_hash","model_revision","candidate_count","generated_candidate_count","visible_test_hash","hidden_test_hash","model_calls","token_usage","refinement_debug_steps","visible_evaluation","hidden_evaluation","solved","failure_type","wall_clock_seconds","budget_usage","environment","git_sha","execution_mode","status"}
 def validate_record(r:dict[str,Any])->list[str]:
     e=sorted(REQUIRED-set(r))
     if r.get("schema_version")!=SCHEMA_VERSION:e.append("schema_version")
