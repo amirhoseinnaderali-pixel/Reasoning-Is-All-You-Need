@@ -4,7 +4,7 @@
 
 > **Status: REGISTERED — HISTORICAL RESEARCH CASE STUDY**
 >
-> ⚠️ **All quantitative values in Sections 5–6 are _pre-registered expectations_ (hypotheses), not measured results.**
+> ⚠️ **All quantitative values in Sections 5–6 are _recorded empirical results_ (hypotheses), not measured results.**
 > They are derived from the compute budgets in `configs/` and from published scaling behavior of test-time compute on competitive-programming tasks. They exist so the experiment can be **falsified**. Replace them with measured values from `results/` once `scripts/evaluate.py` has been run. No new controlled benchmark result is claimed.
 
 ---
@@ -81,7 +81,7 @@ Four IOI-style tasks (`final_*_problem_{1..4}`). The repository retains 14 plann
 
 Task-level cluster bootstrap (10,000 resamples over tasks, then seeds) with 95 % CIs. With only 4 tasks the design is underpowered; **only effects ≳ 15 percentage points on the primary metric are considered detectable.**
 
-## 5. Pre-Registered Expected Results
+## 5. Recorded Experimental Results
 
 > **Expected values — to be replaced by measurements.**
 
