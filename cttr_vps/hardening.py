@@ -18,8 +18,7 @@ def load_manifest()->dict[str,Any]:
     return data
 def require_frozen_benchmark(manifest:dict[str,Any])->str:
     if manifest.get("status")!="FROZEN":raise RuntimeError("Benchmark is not frozen")
-    material=str(manifest.get("materialization_sha256") or "")
-    tasks=manifest.get("tasks")
+    material=str(manifest.get("materialization_sha256") or "");tasks=manifest.get("tasks")
     if not material or not isinstance(tasks,list) or not tasks:raise RuntimeError("Benchmark materialization hash/task population is incomplete")
     bundle=ROOT/"benchmark/materialized.json"
     if not bundle.exists():raise RuntimeError("Frozen benchmark bundle is missing")
@@ -50,13 +49,15 @@ def preflight(mode:str)->dict[str,Any]:
     if mode=="real":
         try:require_frozen_benchmark(manifest)
         except Exception as exc:failures.append(str(exc))
+    if mode in {"smoke","real"}:
         if not protocol.get("model",{}).get("model_revision"):failures.append("Model revision is not frozen")
         if "@" not in protocol.get("execution",{}).get("image",""):failures.append("Execution image is not digest pinned")
         if not (os.getenv("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEYS")):failures.append("Google credentials are missing")
         if shutil.which("docker") is None:failures.append("Docker is unavailable")
-        try:hidden_path()
-        except Exception as exc:failures.append(str(exc))
-        if not protocol.get("reproducibility",{}).get("immutable_results"):failures.append("Immutable results are not enabled")
+        if mode=="real":
+            try:hidden_path()
+            except Exception as exc:failures.append(str(exc))
+            if not protocol.get("reproducibility",{}).get("immutable_results"):failures.append("Immutable results are not enabled")
     current_git=git_sha()
     if mode=="real" and current_git=="UNAVAILABLE":failures.append("Git SHA is unavailable")
     return {"status":"PASS" if not failures else "FAIL","mode":mode,"failures":failures,"git_sha":current_git,"config_hash":config_hash(protocol),"environment":environment_metadata()}
