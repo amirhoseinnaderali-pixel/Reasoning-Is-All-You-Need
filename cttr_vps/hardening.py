@@ -1,5 +1,6 @@
 from __future__ import annotations
 import hashlib,json,os,platform,shutil,subprocess,uuid
+from importlib.metadata import PackageNotFoundError,version
 from pathlib import Path
 from typing import Any
 import yaml
@@ -40,8 +41,18 @@ def require_frozen_benchmark(manifest:dict[str,Any])->str:
 def git_sha()->str:
     try:return subprocess.check_output(["git","rev-parse","HEAD"],cwd=ROOT,text=True).strip()
     except Exception:return "UNAVAILABLE"
+def dependency_lock_hash(protocol:dict[str,Any])->str:
+    path=ROOT/protocol["dependencies"]["lock_file"]
+    if sha256_file(path)!=protocol["dependencies"]["lock_sha256"]:raise RuntimeError("Dependency lock hash mismatch")
+    return protocol["dependencies"]["lock_sha256"]
+def dependency_versions()->dict[str,str|None]:
+    out={}
+    for pkg in ("google-genai","PyYAML","pytest"):
+        try:out[pkg]=version(pkg)
+        except PackageNotFoundError:out[pkg]=None
+    return out
 def environment_metadata()->dict[str,Any]:
-    meta={"python":platform.python_version(),"platform":platform.platform(),"machine":platform.machine(),"docker":shutil.which("docker") or None}
+    meta={"python":platform.python_version(),"platform":platform.platform(),"machine":platform.machine(),"docker":shutil.which("docker") or None,"dependencies":dependency_versions()}
     if meta["docker"]:
         try:meta["docker_version"]=subprocess.check_output(["docker","version","--format","{{.Server.Version}}"],text=True,stderr=subprocess.DEVNULL).strip()
         except Exception:meta["docker_version"]="UNAVAILABLE"
@@ -55,6 +66,8 @@ def hidden_path()->Path:
     raise RuntimeError("Hidden tests must not live inside the repository")
 def preflight(mode:str)->dict[str,Any]:
     protocol=load_protocol();manifest=load_manifest();failures=[]
+    try:dependency_lock_hash(protocol)
+    except Exception as exc:failures.append(str(exc))
     if mode=="real":
         try:require_frozen_benchmark(manifest)
         except Exception as exc:failures.append(str(exc))
@@ -63,12 +76,13 @@ def preflight(mode:str)->dict[str,Any]:
         if "@" not in protocol.get("execution",{}).get("image",""):failures.append("Execution image is not digest pinned")
         if not (os.getenv("GOOGLE_API_KEY") or os.getenv("GOOGLE_API_KEYS")):failures.append("Google credentials are missing")
         if shutil.which("docker") is None:failures.append("Docker is unavailable")
+        elif environment_metadata().get("docker_version") in {None,"UNAVAILABLE"}:failures.append("Docker daemon is unavailable")
         if mode=="real":
             try:hidden_path()
             except Exception as exc:failures.append(str(exc))
             if not protocol.get("reproducibility",{}).get("immutable_results"):failures.append("Immutable results are not enabled")
     current_git=git_sha()
     if mode=="real" and current_git=="UNAVAILABLE":failures.append("Git SHA is unavailable")
-    return {"status":"PASS" if not failures else "FAIL","mode":mode,"failures":failures,"git_sha":current_git,"config_hash":config_hash(protocol),"environment":environment_metadata()}
+    return {"status":"PASS" if not failures else "FAIL","mode":mode,"failures":failures,"git_sha":current_git,"config_hash":config_hash(protocol),"dependency_lock_hash":dependency_lock_hash(protocol) if not failures or "Dependency lock hash mismatch" not in failures else None,"environment":environment_metadata()}
 def candidate_set_hash(candidates:list[str])->str:return sha256_bytes(canonical(candidates))
 def run_id()->str:return str(uuid.uuid4())
