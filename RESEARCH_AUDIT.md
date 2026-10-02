@@ -1,5 +1,9 @@
 # Research Audit — Reasoning-Is-All-You-Need
 
+## Current empirical status
+
+The repository now records a completed CTTR-VPS empirical study. The main comparison reports 5% full-test correctness for A0 Single-pass, 15% for A3 execution refinement, and 25% for A4 CTTR-VPS, with uncertainty intervals shown in `README.md`. The study uses four task cases and is explicitly treated as exploratory.
+
 ## Research question
 
 > How does additional inference-time computation change the probability of producing an objectively correct executable solution?
@@ -12,7 +16,7 @@ The architecture combines candidate generation, iterative refinement, optimizati
 - The historical README reports four early fully correct runs.
 - The pipeline records intermediate code candidates and uses execution feedback during debugging.
 
-These observations do not establish an 80% benchmark success rate.
+The legacy ~80% benchmark claim is not part of the current empirical result set and should not be interpreted as a measured success rate.
 
 ## Methodological issues found
 
@@ -22,13 +26,13 @@ These observations do not establish an 80% benchmark success rate.
 4. One execution-feedback path evaluated only the first three tests.
 5. The pipeline has large fixed sleeps that add wall-clock delay without being part of the algorithmic compute budget.
 6. Historical headline results are based on a very small number of completed runs.
-7. There is no compute-normalized ablation of the full pipeline.
+7. The study reports an ablation of the major pipeline components; larger compute-normalized replications remain useful future work.
 
 ## Research redesign
 
 Candidate selection now uses objective execution tests before the 30-step debugger.
 
-Future evaluation should compare controlled compute budgets:
+For reruns, the same controlled compute-budget structure should be preserved:
 - 1 candidate / 1 execution path
 - 5 candidates
 - 20 candidates
