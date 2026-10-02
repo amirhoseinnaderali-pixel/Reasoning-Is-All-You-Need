@@ -18,9 +18,10 @@ jobs:
       - run: python -m compileall -q .
       - run: pytest -q
       - run: python scripts/scientific_audit.py > audit-ci.json 2>&1 || test $? -eq 1
-      - run: python - <<'PY'
-        import json
-        d=json.load(open("audit-ci.json"))
-        assert d["status"] == "FAIL"
-        assert any("Benchmark" in x for x in d["preflight"]["failures"])
-        PY
+      - run: |
+          python - <<'PY'
+          import json
+          d=json.load(open("audit-ci.json"))
+          assert d["status"] == "FAIL"
+          assert any("Benchmark" in x for x in d["preflight"]["failures"])
+          PY
