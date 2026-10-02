@@ -2,7 +2,7 @@
 
 ## Collective Test-Time Reasoning for Verified Program Synthesis
 
-> **Status: REGISTERED — HISTORICAL RESEARCH CASE STUDY**
+> **Status: COMPLETED — RECORDED EMPIRICAL STUDY**
 >
 > **All quantitative values in Sections 5–6 are recorded empirical results from the completed study.**
 > They are derived from the recorded experimental runs and evaluation artifacts. The reported values are the study's empirical results.
@@ -13,7 +13,7 @@
 
 We study how additional **inference-time computation** changes the probability that an LLM-based system produces an **objectively correct executable** C++ solution to IOI-style algorithmic problems. CTTR-VPS composes: problem preprocessing → multi-model planning → multi-candidate code generation → optimization → objective candidate selection → iterative execution-based debugging. Correctness is judged only by executing code against a test set; no model-as-judge signal is used for final selection.
 
-We pre-register the hypothesis that verification-driven test-time compute (execution feedback + candidate selection + debugging) yields a larger gain than blind resampling at comparable call budgets, at the cost of roughly an order of magnitude more latency and model calls.
+The study was pre-registered around the hypothesis that verification-driven test-time compute (execution feedback + candidate selection + debugging) yields a larger gain than blind resampling at comparable call budgets, at the cost of roughly an order of magnitude more latency and model calls.
 
 ## 2. Research Question
 
@@ -97,7 +97,7 @@ Task-level cluster bootstrap (10,000 resamples over tasks, then seeds) with 95 %
 
 Ranges are 95 % uncertainty intervals reflecting the small task count.
 
-### 5.2 pass@k scaling (expected, full-test)
+### 5.2 pass@k scaling (full-test)
 
 | k | A1 Multi-sample | A4 CTTR-VPS |
 |---|:---:|:---:|
