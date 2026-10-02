@@ -65,8 +65,8 @@ def hidden_path()->Path:
     except ValueError:return p
     raise RuntimeError("Hidden tests must not live inside the repository")
 def preflight(mode:str)->dict[str,Any]:
-    protocol=load_protocol();manifest=load_manifest();failures=[]
-    try:dependency_lock_hash(protocol)
+    protocol=load_protocol();manifest=load_manifest();failures=[];lock_hash=None
+    try:lock_hash=dependency_lock_hash(protocol)
     except Exception as exc:failures.append(str(exc))
     if mode=="real":
         try:require_frozen_benchmark(manifest)
@@ -83,6 +83,6 @@ def preflight(mode:str)->dict[str,Any]:
             if not protocol.get("reproducibility",{}).get("immutable_results"):failures.append("Immutable results are not enabled")
     current_git=git_sha()
     if mode=="real" and current_git=="UNAVAILABLE":failures.append("Git SHA is unavailable")
-    return {"status":"PASS" if not failures else "FAIL","mode":mode,"failures":failures,"git_sha":current_git,"config_hash":config_hash(protocol),"dependency_lock_hash":dependency_lock_hash(protocol) if not failures or "Dependency lock hash mismatch" not in failures else None,"environment":environment_metadata()}
+    return {"status":"PASS" if not failures else "FAIL","mode":mode,"failures":failures,"git_sha":current_git,"config_hash":config_hash(protocol),"dependency_lock_hash":lock_hash,"environment":environment_metadata()}
 def candidate_set_hash(candidates:list[str])->str:return sha256_bytes(canonical(candidates))
 def run_id()->str:return str(uuid.uuid4())
