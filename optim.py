@@ -246,8 +246,10 @@ async def optimizer(code_list: List[str],output_dir: str):
 
 
     api_key_google_list = [
-    key.strip() for key in os.getenv("GOOGLE_API_KEYS", "").split(",") if key.strip()
-]
+        key.strip() for key in os.getenv("GOOGLE_API_KEYS", "").split(",") if key.strip()
+    ]
+    if not api_key_google_list:
+        raise RuntimeError("Optimizer requires GOOGLE_API_KEY(S) in the environment.")
 
     #phase5_file = "pipeline_results/phase5.txt"
     #code_list = load_codes_from_file(phase5_file)

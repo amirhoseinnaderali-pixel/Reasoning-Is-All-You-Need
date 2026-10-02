@@ -431,7 +431,8 @@ async def call_model_with_retry____________________________________________(
     system_prompt: str = "",
     max_retries: int = 3,
     temperature: float = 0.7,
-    api_key_google: str = ""
+    api_key_google: str = "",
+    api_key_ollama: str = ""
 ) -> str:
   
     del provider  # retained for backwards compatibility
@@ -441,14 +442,22 @@ async def call_model_with_retry____________________________________________(
     if system_prompt:
         combined_prompt = f"{system_prompt.strip()}\n\n{prompt}"
 
+    if not api_key_google and model.startswith("gemini-"):
+        api_key_google = os.getenv("GOOGLE_API_KEY", "") or os.getenv("GOOGLE_API_KEYS", "").split(",")[0].strip()
+    if not api_key_ollama:
+        api_key_ollama = os.getenv("OLLAMA_API_KEY", "") or os.getenv("OLLAMA_API_KEYS", "").split(",")[0].strip()
+
     loop = asyncio.get_running_loop()
 
     async def _invoke() -> dict:
-        # Use first API key as placeholder (call_model handles rotation internally)
-        ollama_key = _OLLAMA_API_KEY[0] if _OLLAMA_API_KEY else ""
         return await loop.run_in_executor(
             None,
-            lambda: call_model(model, combined_prompt, api_key_google=api_key_google,api_key_ollama="") 
+            lambda: call_model(
+                model,
+                combined_prompt,
+                api_key_google=api_key_google,
+                api_key_ollama=api_key_ollama,
+            )
         )
 
     last_error: str | None = None
@@ -506,6 +515,7 @@ async def plan_to_code(
     model_config: Dict,
     iteration: int,
     api_key_google: str = "",
+    api_key_ollama: str = "",
     speed: int = 1,
     memory: int = 512
 ) -> Tuple[str, ExecutionMetrics]:
@@ -550,7 +560,8 @@ Return ONLY the C++ code, wrapped in ```cpp code blocks."""
             prompt=user_prompt,
             system_prompt=system_prompt,
             temperature=0.7,
-            api_key_google=api_key_google
+            api_key_google=api_key_google,
+            api_key_ollama=api_key_ollama,
         )
         
         code = extract_code_from_response(response)

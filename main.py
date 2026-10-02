@@ -137,8 +137,6 @@ async def plan_to_code(plan: str, problem: str, output_dir: str,tests: list,spee
 
     #all_results =  await _30step(best_code, tests)
 
-async 
-
 async def select_best_code_by_tests(candidate_codes: list, tests: list, output_dir: str):
     evaluations = []
     for idx, candidate in enumerate(candidate_codes):
