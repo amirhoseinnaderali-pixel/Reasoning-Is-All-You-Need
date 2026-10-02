@@ -23,7 +23,7 @@ def ptxt(problem,role,prior="",feedback=""):
     return "Solve this C++17 task and return only source code.\nTASK:\n"+problem+"\nROLE:\n"+role+"\nPRIOR:\n"+prior+"\nVISIBLE EXECUTION FEEDBACK:\n"+feedback+"\nDo not use hidden tests."
 
 def sandbox(protocol):
-    e=protocol["execution"];return DockerSandbox(e["image"],e["timeout_s"],e["memory_mb"],e["cpus"],e["pids_limit"])
+    e=protocol["execution"];return DockerSandbox(e["image"],e["task_timeout_s"],e["test_timeout_s"],e["memory_mb"],e["cpus"],e["pids_limit"])
 
 def failure_eval(failure_type,detail=""):
     return {"compiled":False,"tests_passed":0,"tests_failed":0,"total_tests":0,"all_passed":False,"failure_type":failure_type,"detail":detail,"tests":[]}
