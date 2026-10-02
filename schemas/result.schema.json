@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["schema_version","experiment_id","run_id","task_id","seed","method","candidate_set_hash","config_hash","benchmark_hash","model_config_hash","model_revision","candidate_count","generated_candidate_count","visible_test_hash","hidden_test_hash","model_calls","token_usage","refinement_debug_steps","visible_evaluation","hidden_evaluation","solved","failure_type","wall_clock_seconds","budget_usage","environment","git_sha","execution_mode","status"],
+  "required": ["schema_version","experiment_id","run_id","task_id","seed","method","candidate_set_hash","config_hash","benchmark_hash","dependency_lock_hash","model_config_hash","model_revision","candidate_count","generated_candidate_count","visible_test_hash","hidden_test_hash","model_calls","token_usage","refinement_debug_steps","visible_evaluation","hidden_evaluation","solved","failure_type","wall_clock_seconds","budget_usage","environment","git_sha","execution_mode","status"],
   "properties": {
     "schema_version": {"const": "2.0"},
     "experiment_id": {"const": "EXP-001"},
@@ -11,6 +11,7 @@
     "method": {"enum": ["single_pass","multi_sample","self_refinement","execution_refinement","cttr_vps"]},
     "candidate_set_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "generated_candidate_count": {"type": "integer", "minimum": 0},
+    "dependency_lock_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "visible_test_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "hidden_test_hash": {"anyOf": [{"type": "string", "pattern": "^[0-9a-f]{64}$"},{"type": "null"}]},
     "solved": {"type": "boolean"},
