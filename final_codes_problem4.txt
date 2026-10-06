@@ -1,0 +1,1854 @@
+=== Code Variant 1 ===
+#include <bits/stdc++.h>
+using namespace std;
+
+/* Fenwick Tree (Binary Indexed Tree) for prefix sums.
+   Supports point updates and queries of sum[0..idx] (inclusive) in O(log N). */
+class Fenwick {
+    int n;
+    vector<int> bit;          // 1‑based internal array
+public:
+    explicit Fenwick(int n = 0) { init(n); }
+
+    void init(int n_) {
+        n = n_;
+        bit.assign(n + 1, 0);
+    }
+    // add delta at position idx (0‑based)
+    void add(int idx, int delta = 1) {
+        for (++idx; idx <= n; idx += idx & -idx) bit[idx] += delta;
+    }
+    // sum of [0..idx] (0‑based, inclusive)
+    int sum(int idx) const {
+        int res = 0;
+        for (++idx; idx > 0; idx -= idx & -idx) res += bit[idx];
+        return res;
+    }
+};
+
+struct PairInfo {
+    int leftPos;   // index of left shoe (value < 0)
+    int rightPos;  // index of right shoe (value > 0)
+    int anchor;    // min(leftPos, rightPos) – sorting key
+};
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int n;
+    if (!(cin >> n)) return 0;
+    const int m = 2 * n;
+
+    // size -> {leftPos, rightPos}
+    unordered_map<int, pair<int, int>> pos;
+    pos.reserve(n * 2);
+
+    for (int i = 0; i < m; ++i) {
+        int v; cin >> v;
+        int sz = abs(v);
+        auto &pr = pos[sz];               // default‑initialized to {0,0}
+        if (v < 0) pr.first = i;          // left shoe
+        else       pr.second = i;          // right shoe
+    }
+
+    vector<PairInfo> pairs;
+    pairs.reserve(n);
+    for (auto &kv : pos) {
+        int l = kv.second.first;
+        int r = kv.second.second;
+        pairs.push_back({l, r, min(l, r)});
+    }
+
+    // Greedy optimal order: sort by earliest appearance of any shoe of the pair
+    sort(pairs.begin(), pairs.end(),
+         [](const PairInfo &a, const PairInfo &b) {
+             return a.anchor < b.anchor;
+         });
+
+    // target[pos] = final index (0..2n-1) of the shoe currently at 'pos'
+    vector<int> target(m);
+    for (int i = 0; i < n; ++i) {
+        const auto &p = pairs[i];
+        target[p.leftPos]  = 2 * i;       // left shoe → even slot
+        target[p.rightPos] = 2 * i + 1;   // right shoe → odd slot
+    }
+
+    // Count inversions = minimum number of adjacent swaps
+    Fenwick ft(m);
+    long long ans = 0;
+    for (int i = 0; i < m; ++i) {
+        int val = target[i];
+        int leq = ft.sum(val);            // already placed with target ≤ val
+        ans += i - leq;                   // those > val form inversions
+        ft.add(val, 1);
+    }
+
+    cout << ans << '\n';
+    return 0;
+}
+
+=== Code Variant 2 ===
+#include <iostream>
+#include <vector>
+#include <map> // For mapping shoe sizes to positions
+#include <algorithm> // For std::sort, std::min
+#include <cmath>     // For std::abs
+#include <cstdint>   // For long long (uint64_t for unsigned, int64_t for signed)
+
+/**
+ * @brief Fenwick Tree (Binary Indexed Tree) for 0-indexed operations.
+ * Supports point updates and prefix sum queries in O(log N) time.
+ */
+class FenwickTree {
+private:
+    std::vector<int> tree;
+    int size; // Represents the maximum possible 0-indexed value + 1.
+              // If indices are 0 to (N-1), then size is N.
+
+public:
+    /**
+     * @brief Constructs a Fenwick Tree for an array of size `n`.
+     *        It can store values for 0-indexed positions from 0 to n-1.
+     * @param n The maximum index value + 1 (i.e., range of values).
+     */
+    explicit FenwickTree(int n) : size(n) {
+        // The internal tree array is 1-indexed, so it needs `n + 1` elements.
+        tree.assign(n + 1, 0);
+    }
+
+    /**
+     * @brief Adds `delta` to the element at a 0-indexed position `idx`.
+     *        This operation propagates the change up the tree.
+     * @param idx The 0-indexed position to update.
+     * @param delta The value to add.
+     */
+    void update(int idx, int delta) {
+        // Convert 0-based index to 1-based index for internal Fenwick Tree logic.
+        for (++idx; idx <= size; idx += idx & -idx) {
+            tree[idx] += delta;
+        }
+    }
+
+    /**
+     * @brief Queries the cumulative sum of elements from 0-indexed position 0
+     *        up to `idx` (inclusive). This effectively counts elements.
+     * @param idx The 0-indexed position to query up to.
+     * @return The sum of elements in the range [0, idx].
+     */
+    int query(int idx) const {
+        int res = 0;
+        // Convert 0-based index to 1-based index for internal Fenwick Tree logic.
+        for (++idx; idx > 0; idx -= idx & -idx) {
+            res += tree[idx];
+        }
+        return res;
+    }
+};
+
+/**
+ * @brief Structure to store information about a shoe pair for sorting.
+ */
+struct ShoePairInfo {
+    int size;      // The size of the shoe pair.
+    int left_pos;  // The initial 0-indexed position of the left shoe.
+    int right_pos; // The initial 0-indexed position of the right shoe.
+    int anchor_pos; // The minimum of left_pos and right_pos, used for optimal sorting.
+
+    // Constructor to easily initialize.
+    ShoePairInfo(int s, int l, int r) : size(s), left_pos(l), right_pos(r) {
+        anchor_pos = std::min(l, r);
+    }
+    
+    // Custom comparison operator to enable sorting `ShoePairInfo` directly.
+    // Sorts primarily by `anchor_pos`. If anchors are equal, the original problem
+    // doesn't specify secondary criteria, so default `std::pair` or stable sort would work.
+    // Here, just `anchor_pos` is enough.
+    bool operator<(const ShoePairInfo& other) const {
+        return anchor_pos < other.anchor_pos;
+    }
+};
+
+int main() {
+    // Optimize C++ standard streams for faster input/output.
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+
+    int n; // Number of shoe pairs.
+    // Read n. If input stream fails (e.g., EOF), exit gracefully.
+    if (!(std::cin >> n)) {
+        return 0;
+    }
+    const int total_shoes = 2 * n; // Total number of individual shoes.
+
+    // Step 1: Parse input and record initial positions of left and right shoes for each size.
+    // `std::map` is used to store `size -> {left_pos, right_pos}`.
+    // It automatically initializes `pair<int, int>` to `{0,0}` if a key is new.
+    // Since all positions are non-negative and will be correctly overwritten, this is fine.
+    std::map<int, std::pair<int, int>> initial_shoe_positions; 
+    
+    for (int i = 0; i < total_shoes; ++i) {
+        int shoe_value;
+        std::cin >> shoe_value;
+        int size = std::abs(shoe_value); // Shoe size is the absolute value.
+        
+        // Access the pair for the current size. `operator[]` will create if not present.
+        auto& positions_for_size = initial_shoe_positions[size]; 
+        
+        if (shoe_value < 0) {
+            positions_for_size.first = i;  // Store initial position for left shoe.
+        } else {
+            positions_for_size.second = i; // Store initial position for right shoe.
+        }
+    }
+    
+    // Step 2: Determine the optimal relative order of shoe pairs.
+    // Create a vector of `ShoePairInfo` objects, which will be sorted.
+    std::vector<ShoePairInfo> sorted_shoe_pairs;
+    sorted_shoe_pairs.reserve(n); // Pre-allocate memory for efficiency.
+    
+    for (const auto& entry : initial_shoe_positions) {
+        // `emplace_back` constructs the object directly in the vector.
+        sorted_shoe_pairs.emplace_back(entry.first, entry.second.first, entry.second.second);
+    }
+    
+    // Sort the pairs. The `operator<` in `ShoePairInfo` ensures sorting by `anchor_pos`.
+    // This greedy sorting strategy ensures that pairs whose shoes appear earliest in the
+    // initial sequence are prioritized, leading to the minimum total swaps.
+    std::sort(sorted_shoe_pairs.begin(), sorted_shoe_pairs.end());
+    
+    // Step 3: Map initial positions to their target final positions in the optimal arrangement.
+    // `target_final_position[initial_index] = final_index`.
+    std::vector<int> target_final_position(total_shoes); 
+    
+    for (int k = 0; k < n; ++k) {
+        const auto& pair_info = sorted_shoe_pairs[k];
+        
+        // The k-th optimally ordered pair should occupy final positions `2*k` (left shoe)
+        // and `2*k + 1` (right shoe).
+        target_final_position[pair_info.left_pos] = 2 * k; 
+        target_final_position[pair_info.right_pos] = 2 * k + 1;
+    }
+    
+    // Step 4: Count inversions in the `target_final_position` sequence using a Fenwick Tree.
+    // The minimum number of adjacent swaps required to transform one permutation into another
+    // is equal to the number of inversions between them.
+    // An inversion is a pair of indices (i, j) such that `i < j` but
+    // `target_final_position[i] > target_final_position[j]`.
+    FenwickTree ft(total_shoes); // Fenwick Tree operates on the range of target positions [0, total_shoes-1].
+    long long minimum_swaps = 0; // Use `long long` for the count to prevent potential overflow.
+    
+    // Iterate through the shoes in their initial order (from initial index 0 to `total_shoes-1`).
+    for (int i = 0; i < total_shoes; ++i) {
+        int current_shoe_target_pos = target_final_position[i];
+        
+        // `ft.query(current_shoe_target_pos)` returns the count of shoes that have
+        // already been processed (i.e., had initial index `j < i`) AND whose
+        // target positions `target_final_position[j]` are less than or equal to
+        // `current_shoe_target_pos`.
+        int count_processed_leq = ft.query(current_shoe_target_pos);
+        
+        // The total number of shoes processed so far (with initial index `j < i`) is `i`.
+        // The number of shoes processed `j < i` whose target position `target_final_position[j]`
+        // is GREATER than `current_shoe_target_pos` is `i - count_processed_leq`.
+        // These are precisely the inversions formed by the current shoe `target_final_position[i]`.
+        minimum_swaps += (long long)i - count_processed_leq;
+        
+        // Mark `current_shoe_target_pos` as having been seen by updating the Fenwick Tree.
+        ft.update(current_shoe_target_pos, 1);
+    }
+    
+    // Output the total minimum number of adjacent swaps required.
+    std::cout << minimum_swaps << '\n';
+    
+    return 0;
+}
+
+=== Code Variant 3 ===
+#include <iostream>
+#include <vector>
+#include <unordered_map>
+#include <algorithm>
+#include <cmath>
+
+using namespace std;
+
+// Fenwick Tree (Binary Indexed Tree) for efficient prefix sum queries and updates
+class FenwickTree {
+private:
+    vector<int> tree;
+    int size;
+
+public:
+    explicit FenwickTree(int n) : size(n) {
+        tree.assign(n + 1, 0);
+    }
+
+    // Add delta to the element at 0-indexed position idx
+    void update(int idx, int delta) {
+        for (int i = idx + 1; i <= size; i += i & -i) {
+            tree[i] += delta;
+        }
+    }
+
+    // Get sum of elements from position 0 to idx (0-indexed, inclusive)
+    int query(int idx) const {
+        int res = 0;
+        for (int i = idx + 1; i > 0; i -= i & -i) {
+            res += tree[i];
+        }
+        return res;
+    }
+};
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int n;
+    if (!(cin >> n)) return 0;
+    const int m = 2 * n;
+
+    // Store positions of left and right shoes for each size
+    unordered_map<int, pair<int, int>> positions;
+    positions.reserve(n * 2);
+
+    for (int i = 0; i < m; ++i) {
+        int shoe;
+        cin >> shoe;
+        int size = abs(shoe);
+        auto& pos = positions[size]; // Creates default {0,0} if not exists
+        if (shoe < 0) {
+            pos.first = i;   // Left shoe
+        } else {
+            pos.second = i;  // Right shoe
+        }
+    }
+
+    // Create vector of pairs with their minimum position for sorting
+    vector<pair<int, int>> pairs;
+    pairs.reserve(n);
+    for (const auto& kv : positions) {
+        int size = kv.first;
+        int left_pos = kv.second.first;
+        int right_pos = kv.second.second;
+        pairs.push_back({min(left_pos, right_pos), size});
+    }
+
+    // Sort pairs by the earliest appearance of either shoe
+    sort(pairs.begin(), pairs.end());
+
+    // Assign target positions based on sorted order
+    vector<int> target_position(m);
+    for (int i = 0; i < n; ++i) {
+        int size = pairs[i].second;
+        int left_pos = positions[size].first;
+        int right_pos = positions[size].second;
+        target_position[left_pos] = 2 * i;
+        target_position[right_pos] = 2 * i + 1;
+    }
+
+    // Count inversions using Fenwick Tree
+    FenwickTree ft(m);
+    long long inversions = 0;
+
+    for (int i = 0; i < m; ++i) {
+        int pos = target_position[i];
+        int count_le = ft.query(pos);
+        inversions += i - count_le;
+        ft.update(pos, 1);
+    }
+
+    cout << inversions << '\n';
+    return 0;
+}
+
+=== Code Variant 4 ===
+#include <iostream>
+#include <vector>
+#include <map>
+#include <algorithm>
+
+using namespace std;
+
+class FenwickTree {
+private:
+    vector<int> tree;
+    int size;
+
+public:
+    explicit FenwickTree(int n) : size(n) {
+        tree.assign(n + 1, 0);
+    }
+
+    void update(int idx, int delta) {
+        for (++idx; idx <= size; idx += idx & -idx) {
+            tree[idx] += delta;
+        }
+    }
+
+    int query(int idx) const {
+        int res = 0;
+        for (++idx; idx > 0; idx -= idx & -idx) {
+            res += tree[idx];
+        }
+        return res;
+    }
+};
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int n;
+    if (!(cin >> n)) return 0;
+    const int m = 2 * n;
+
+    map<int, pair<int, int>> positions;
+
+    for (int i = 0; i < m; ++i) {
+        int shoe;
+        cin >> shoe;
+        int size = abs(shoe);
+
+        if (positions.find(size) == positions.end()) {
+            positions[size] = {-1, -1};
+        }
+
+        if (shoe < 0) {
+            positions[size].first = i;
+        } else {
+            positions[size].second = i;
+        }
+    }
+
+    vector<pair<int, int>> pairs;
+    for (const auto& entry : positions) {
+        int size = entry.first;
+        int left_pos = entry.second.first;
+        int right_pos = entry.second.second;
+        pairs.push_back({min(left_pos, right_pos), size});
+    }
+
+    sort(pairs.begin(), pairs.end());
+
+    vector<int> target(m);
+    for (int i = 0; i < n; ++i) {
+        int size = pairs[i].second;
+        int left_pos = positions[size].first;
+        int right_pos = positions[size].second;
+        target[left_pos] = 2 * i;
+        target[right_pos] = 2 * i + 1;
+    }
+
+    FenwickTree ft(m);
+    long long ans = 0;
+    for (int i = 0; i < m; ++i) {
+        int val = target[i];
+        ans += i - ft.query(val);
+        ft.update(val, 1);
+    }
+
+    cout << ans << '\n';
+    return 0;
+}
+
+=== Code Variant 5 ===
+#include <iostream>
+#include <vector>
+#include <map>
+#include <algorithm>
+#include <cmath>
+
+using namespace std;
+
+// Fenwick Tree (Binary Indexed Tree) for efficient prefix sum queries and updates
+class FenwickTree {
+private:
+    vector<int> tree;
+    int size;
+
+public:
+    explicit FenwickTree(int n) : size(n) {
+        tree.assign(n + 1, 0);
+    }
+
+    // Add delta to the element at 0-indexed position idx
+    void update(int idx, int delta) {
+        for (++idx; idx <= size; idx += idx & -idx) {
+            tree[idx] += delta;
+        }
+    }
+
+    // Get sum of elements from position 0 to idx (0-indexed, inclusive)
+    int query(int idx) const {
+        int res = 0;
+        for (++idx; idx > 0; idx -= idx & -idx) {
+            res += tree[idx];
+        }
+        return res;
+    }
+};
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int n;
+    cin >> n;
+    const int m = 2 * n;
+    
+    // Map each shoe size to its left and right positions
+    map<int, pair<int, int>> positions; // size -> {left_pos, right_pos}
+    
+    for (int i = 0; i < m; ++i) {
+        int shoe;
+        cin >> shoe;
+        int size = abs(shoe);
+        
+        if (positions.find(size) == positions.end()) {
+            positions[size] = {-1, -1};
+        }
+        
+        if (shoe < 0) {
+            positions[size].first = i;  // Left shoe
+        } else {
+            positions[size].second = i; // Right shoe
+        }
+    }
+    
+    // Create pairs and sort by the earliest appearance of either shoe
+    vector<pair<int, int>> pairs; // {min_position, size}
+    for (const auto& entry : positions) {
+        int size = entry.first;
+        int left_pos = entry.second.first;
+        int right_pos = entry.second.second;
+        pairs.push_back({min(left_pos, right_pos), size});
+    }
+    
+    sort(pairs.begin(), pairs.end());
+    
+    // Determine the target position for each shoe in the optimal arrangement
+    vector<int> target_position(m); // target_position[initial_index] = final_position
+    for (int i = 0; i < n; ++i) {
+        int size = pairs[i].second;
+        int left_pos = positions[size].first;
+        int right_pos = positions[size].second;
+        
+        target_position[left_pos] = 2 * i;
+        target_position[right_pos] = 2 * i + 1;
+    }
+    
+    // Count inversions using Fenwick Tree
+    // An inversion is a pair (i,j) where i < j but target_position[i] > target_position[j]
+    FenwickTree ft(m);
+    long long swaps = 0;
+    
+    for (int i = 0; i < m; ++i) {
+        int pos = target_position[i];
+        // Count how many elements already processed have value > pos
+        // This is equal to: (number of elements processed) - (number of elements <= pos)
+        swaps += i - ft.query(pos);
+        ft.update(pos, 1);
+    }
+    
+    cout << swaps << "\n";
+    
+    return 0;
+}
+
+=== Code Variant 6 ===
+#include <iostream>
+#include <vector>
+#include <map>
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+
+using namespace std;
+
+// Fenwick Tree (Binary Indexed Tree) for efficient prefix sum queries and updates
+class FenwickTree {
+private:
+    vector<int> tree;
+    int size; // Max index + 1 (N, if indices are 0 to N-1)
+
+public:
+    // n is the size of the array (range 0 to n-1)
+    explicit FenwickTree(int n) : size(n) {
+        // tree is 1-indexed internally, hence size + 1
+        tree.assign(n + 1, 0); 
+    }
+
+    // Add delta to the element at 0-indexed position idx
+    void update(int idx, int delta) {
+        // Convert 0-based idx to 1-based index i = idx + 1
+        for (int i = idx + 1; i <= size; i += i & -i) {
+            tree[i] += delta;
+        }
+    }
+
+    // Get sum of elements from position 0 to idx (0-indexed, inclusive)
+    // Counts elements whose value is <= idx
+    int query(int idx) const {
+        int res = 0;
+        // Convert 0-based idx to 1-based index i = idx + 1
+        for (int i = idx + 1; i > 0; i -= i & -i) {
+            res += tree[i];
+        }
+        return res;
+    }
+};
+
+// Structure to hold information about a pair and its sorting key
+struct ShoePairInfo {
+    int size;
+    int left_pos;
+    int right_pos;
+    int anchor_pos; // min(left_pos, right_pos)
+
+    ShoePairInfo(int s, int l, int r) : size(s), left_pos(l), right_pos(r) {
+        anchor_pos = min(l, r);
+    }
+    
+    // Custom comparison function for sorting based on the earliest appearance
+    bool operator<(const ShoePairInfo& other) const {
+        return anchor_pos < other.anchor_pos;
+    }
+};
+
+
+void solve() {
+    int n;
+    if (!(cin >> n)) return;
+    const int total_shoes = 2 * n;
+    
+    // Map: size -> {left_pos, right_pos}
+    map<int, pair<int, int>> positions; 
+    
+    // 1. Parse input and record initial positions (0-indexed)
+    for (int i = 0; i < total_shoes; ++i) {
+        int shoe_val;
+        cin >> shoe_val;
+        int size = abs(shoe_val);
+        
+        auto& pr = positions[size]; 
+        
+        if (shoe_val < 0) {
+            pr.first = i;      // Left shoe position
+        } else {
+            pr.second = i;     // Right shoe position
+        }
+    }
+    
+    // 2. Determine the optimal relative order of pairs
+    vector<ShoePairInfo> pairs;
+    pairs.reserve(n);
+    
+    for (const auto& entry : positions) {
+        pairs.emplace_back(entry.first, entry.second.first, entry.second.second);
+    }
+    
+    // Sort optimally: pairs whose shoes appear earliest must take the earliest target slots (0, 1), (2, 3), ...
+    sort(pairs.begin(), pairs.end());
+    
+    // 3. Map initial positions to target positions
+    // target_position[initial_index] = final_index (0 to 2n-1)
+    vector<int> target_position(total_shoes); 
+    
+    for (int k = 0; k < n; ++k) {
+        const auto& p = pairs[k];
+        
+        // k-th optimally ordered pair goes to slots 2k and 2k+1
+        target_position[p.left_pos] = 2 * k; 
+        target_position[p.right_pos] = 2 * k + 1;
+    }
+    
+    // 4. Count inversions (minimum adjacent swaps)
+    FenwickTree ft(total_shoes);
+    long long swaps = 0;
+    
+    // Iterate through the initial sequence index i
+    for (int i = 0; i < total_shoes; ++i) {
+        int target_pos = target_position[i];
+        
+        // Count how many shoes processed before i (j < i) have T[j] <= T[i]
+        int count_le = ft.query(target_pos);
+        
+        // Inversions formed by T[i] = (Total elements processed so far) - (Count <= T[i])
+        // Total elements processed before i is exactly i.
+        swaps += (long long)i - count_le;
+        
+        // Mark T[i] as processed
+        ft.update(target_pos, 1);
+    }
+    
+    cout << swaps << "\n";
+}
+
+int main() {
+    // Optimization for speed
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    solve();
+
+    return 0;
+}
+
+=== Code Variant 7 ===
+#include <iostream>
+#include <vector>
+#include <map>
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+
+using namespace std;
+
+/**
+ * @brief Fenwick Tree (Binary Indexed Tree) for efficient prefix sum queries and updates.
+ * Used here for O(log N) counting of previously seen elements.
+ */
+class FenwickTree {
+private:
+    vector<int> tree;
+    int size; // Max index + 1 (N, if indices are 0 to N-1)
+
+public:
+    // n is the size of the array (range 0 to n-1)
+    explicit FenwickTree(int n) : size(n) {
+        // tree is 1-indexed internally, hence size + 1
+        tree.assign(n + 1, 0); 
+    }
+
+    // Add delta to the element at 0-indexed position idx
+    void update(int idx, int delta) {
+        // Convert 0-based idx to 1-based index i = idx + 1
+        for (int i = idx + 1; i <= size; i += i & -i) {
+            tree[i] += delta;
+        }
+    }
+
+    // Get sum of elements from position 0 to idx (0-indexed, inclusive)
+    // Counts elements whose value is <= idx that have been updated.
+    int query(int idx) const {
+        int res = 0;
+        // Convert 0-based idx to 1-based index i = idx + 1
+        for (int i = idx + 1; i > 0; i -= i & -i) {
+            res += tree[i];
+        }
+        return res;
+    }
+};
+
+// Structure to hold information about a pair and its sorting key
+struct ShoePairInfo {
+    int size;
+    int left_pos;
+    int right_pos;
+    int anchor_pos; // min(left_pos, right_pos) - The greedy sorting key
+
+    ShoePairInfo(int s, int l, int r) : size(s), left_pos(l), right_pos(r) {
+        anchor_pos = min(l, r);
+    }
+    
+    // Custom comparison operator for std::sort
+    bool operator<(const ShoePairInfo& other) const {
+        return anchor_pos < other.anchor_pos;
+    }
+};
+
+
+int main() {
+    // Optimization for speed
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int n;
+    if (!(cin >> n)) return 0;
+    const int total_shoes = 2 * n;
+    
+    // Map: size -> {left_pos, right_pos}
+    // Using std::map here is fine since we only store N unique sizes.
+    map<int, pair<int, int>> positions; 
+    
+    // 1. Parse input and record initial positions (0-indexed)
+    for (int i = 0; i < total_shoes; ++i) {
+        int shoe_val;
+        cin >> shoe_val;
+        int size = abs(shoe_val);
+        
+        // Access or create entry for the size
+        auto& pr = positions[size]; 
+        
+        if (shoe_val < 0) {
+            pr.first = i;      // Left shoe position
+        } else {
+            pr.second = i;     // Right shoe position
+        }
+    }
+    
+    // 2. Determine the optimal relative order of pairs
+    vector<ShoePairInfo> pairs;
+    pairs.reserve(n);
+    
+    for (const auto& entry : positions) {
+        pairs.emplace_back(entry.first, entry.second.first, entry.second.second);
+    }
+    
+    // Sort optimally: pairs whose shoes appear earliest take the earliest target slots (0, 1), (2, 3), ...
+    sort(pairs.begin(), pairs.end());
+    
+    // 3. Map initial positions to target positions
+    // target_position[initial_index] = final_index (0 to 2n-1)
+    vector<int> target_position(total_shoes); 
+    
+    for (int k = 0; k < n; ++k) {
+        const auto& p = pairs[k];
+        
+        // k-th optimally ordered pair goes to slots 2k (left) and 2k+1 (right)
+        target_position[p.left_pos] = 2 * k; 
+        target_position[p.right_pos] = 2 * k + 1;
+    }
+    
+    // 4. Count inversions (minimum adjacent swaps)
+    FenwickTree ft(total_shoes);
+    long long swaps = 0;
+    
+    // Iterate through the initial sequence index i
+    for (int i = 0; i < total_shoes; ++i) {
+        int target_pos = target_position[i];
+        
+        // query(target_pos) counts elements processed before i (j < i) where T[j] <= T[i].
+        int count_le = ft.query(target_pos);
+        
+        // Inversions formed by T[i]: (Total processed before i) - (Count processed with T[j] <= T[i])
+        // = i - count_le = Count processed with T[j] > T[i]
+        swaps += (long long)i - count_le;
+        
+        // Mark T[i] as processed
+        ft.update(target_pos, 1);
+    }
+    
+    cout << swaps << "\n";
+
+    return 0;
+}
+
+=== Code Variant 8 ===
+#include <iostream>
+#include <vector>
+#include <map>
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+
+using namespace std;
+
+// Fenwick Tree (Binary Indexed Tree) for efficient prefix sum queries and updates
+class FenwickTree {
+private:
+    vector<int> tree;
+    int size; // Max index + 1 (N, if indices are 0 to N-1)
+
+public:
+    // n is the size of the array (range 0 to n-1)
+    explicit FenwickTree(int n) : size(n) {
+        // tree is 1-indexed internally, hence size + 1
+        tree.assign(n + 1, 0); 
+    }
+
+    // Add delta to the element at 0-indexed position idx
+    void update(int idx, int delta) {
+        // Convert 0-based idx to 1-based index i = idx + 1
+        for (int i = idx + 1; i <= size; i += i & -i) {
+            tree[i] += delta;
+        }
+    }
+
+    // Get sum of elements from position 0 to idx (0-indexed, inclusive)
+    // Counts elements whose value is <= idx
+    int query(int idx) const {
+        int res = 0;
+        // Convert 0-based idx to 1-based index i = idx + 1
+        for (int i = idx + 1; i > 0; i -= i & -i) {
+            res += tree[i];
+        }
+        return res;
+    }
+};
+
+// Structure to hold information about a pair and its sorting key
+struct ShoePairInfo {
+    int size;
+    int left_pos;
+    int right_pos;
+    int anchor_pos; // min(left_pos, right_pos)
+
+    ShoePairInfo(int s, int l, int r) : size(s), left_pos(l), right_pos(r) {
+        anchor_pos = min(l, r);
+    }
+    
+    // Custom comparison function for sorting based on the earliest appearance
+    bool operator<(const ShoePairInfo& other) const {
+        return anchor_pos < other.anchor_pos;
+    }
+};
+
+
+void solve() {
+    int n;
+    if (!(cin >> n)) return;
+    const int total_shoes = 2 * n;
+    
+    // Map: size -> {left_pos, right_pos}
+    map<int, pair<int, int>> positions; 
+    
+    // 1. Parse input and record initial positions (0-indexed)
+    for (int i = 0; i < total_shoes; ++i) {
+        int shoe_val;
+        cin >> shoe_val;
+        int size = abs(shoe_val);
+        
+        auto& pr = positions[size]; 
+        
+        if (shoe_val < 0) {
+            pr.first = i;      // Left shoe position
+        } else {
+            pr.second = i;     // Right shoe position
+        }
+    }
+    
+    // 2. Determine the optimal relative order of pairs
+    vector<ShoePairInfo> pairs;
+    pairs.reserve(n);
+    
+    for (const auto& entry : positions) {
+        pairs.emplace_back(entry.first, entry.second.first, entry.second.second);
+    }
+    
+    // Sort optimally: pairs whose shoes appear earliest must take the earliest target slots (0, 1), (2, 3), ...
+    sort(pairs.begin(), pairs.end());
+    
+    // 3. Map initial positions to target positions
+    // target_position[initial_index] = final_index (0 to 2n-1)
+    vector<int> target_position(total_shoes); 
+    
+    for (int k = 0; k < n; ++k) {
+        const auto& p = pairs[k];
+        
+        // k-th optimally ordered pair goes to slots 2k and 2k+1
+        target_position[p.left_pos] = 2 * k; 
+        target_position[p.right_pos] = 2 * k + 1;
+    }
+    
+    // 4. Count inversions (minimum adjacent swaps)
+    FenwickTree ft(total_shoes);
+    long long swaps = 0;
+    
+    // Iterate through the initial sequence index i
+    for (int i = 0; i < total_shoes; ++i) {
+        int target_pos = target_position[i];
+        
+        // Count how many shoes processed before i (j < i) have T[j] <= T[i]
+        int count_le = ft.query(target_pos);
+        
+        // Inversions formed by T[i] = (Total elements processed so far) - (Count <= T[i])
+        // Total elements processed before i is exactly i.
+        swaps += (long long)i - count_le;
+        
+        // Mark T[i] as processed
+        ft.update(target_pos, 1);
+    }
+    
+    cout << swaps << "\n";
+}
+
+int main() {
+    // Optimization for speed
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    solve();
+
+    return 0;
+}
+
+=== Code Variant 9 ===
+#include <iostream>
+#include <vector>
+#include <map>
+#include <algorithm>
+#include <cmath>
+#include <cstdint> // For long long
+
+// Fenwick Tree (Binary Indexed Tree) for efficient prefix sum queries and updates.
+// Used here to count elements smaller than a certain value already processed.
+class FenwickTree {
+private:
+    std::vector<int> tree;
+    int size; // Represents the maximum possible index + 1 (e.g., if max index is M-1, size = M)
+
+public:
+    /**
+     * @brief Constructs a Fenwick Tree for an array of size n.
+     * @param n The size of the underlying array (indices 0 to n-1).
+     */
+    explicit FenwickTree(int n) : size(n) {
+        // Internal array is 1-indexed, so size n+1 storage is needed.
+        tree.assign(n + 1, 0);
+    }
+
+    /**
+     * @brief Adds 'delta' to the element at 0-indexed position 'idx'.
+     * This operation propagates up the tree to update relevant prefix sums.
+     */
+    void update(int idx, int delta) {
+        // Convert 0-based index to 1-based index for BIT operations.
+        for (++idx; idx <= size; idx += idx & -idx) {
+            tree[idx] += delta;
+        }
+    }
+
+    /**
+     * @brief Gets the prefix sum of elements from 0-indexed position 0 to 'idx' (inclusive).
+     * This counts how many items have been added at indices less than or equal to 'idx'.
+     * Converts 0-based index to 1-based for BIT operations.
+     */
+    int query(int idx) const {
+        int res = 0;
+        for (++idx; idx > 0; idx -= idx & -idx) {
+            res += tree[idx];
+        }
+        return res;
+    }
+};
+
+// Structure to hold information about a shoe pair, including initial positions and the sorting key.
+struct ShoePairInfo {
+    int size;       // The size of the shoe pair.
+    int left_pos;   // The initial 0-indexed position of the left shoe.
+    int right_pos;  // The initial 0-indexed position of the right shoe.
+    int anchor_pos; // The minimum of left_pos and right_pos, used as the sorting key.
+
+    // Constructor to initialize member variables and calculate anchor_pos.
+    ShoePairInfo(int s, int l, int r) : size(s), left_pos(l), right_pos(r) {
+        anchor_pos = std::min(l, r);
+    }
+    
+    // Custom comparison operator for sorting ShoePairInfo objects.
+    // Sorts based on the anchor_pos, which represents the earliest appearance of either shoe of a pair.
+    bool operator<(const ShoePairInfo& other) const {
+        return anchor_pos < other.anchor_pos;
+    }
+};
+
+int main() {
+    // Optimize C++ standard streams for faster input/output operations.
+    std::ios::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+
+    int n;
+    // Read the number of shoe pairs. If input fails, exit the program.
+    if (!(std::cin >> n)) {
+        return 0;
+    }
+    // Total number of individual shoes is 2*n.
+    const int total_shoes = 2 * n;
+    
+    // Map to store the initial positions of left and right shoes for each size.
+    // Key: shoe size (absolute value).
+    // Value: std::pair<int, int> where .first is the 0-indexed position of the left shoe,
+    //        and .second is the 0-indexed position of the right shoe.
+    std::map<int, std::pair<int, int>> positions; 
+    
+    // Step 1: Parse input and record initial positions of all shoes.
+    for (int i = 0; i < total_shoes; ++i) {
+        int shoe_val;
+        std::cin >> shoe_val;
+        int size = std::abs(shoe_val); // Get the absolute size of the shoe.
+        
+        // Access or create the entry for the current shoe size in the map.
+        // `positions[size]` will default-construct a `std::pair<int, int>` to `{0,0}` if `size` is new.
+        // Since initial positions are 0-indexed, any `0` will be overwritten by the actual position `i`.
+        auto& pr = positions[size]; 
+        
+        if (shoe_val < 0) { // If shoe_val is negative, it's a left shoe.
+            pr.first = i;      // Record its initial position.
+        } else { // If shoe_val is positive, it's a right shoe.
+            pr.second = i;     // Record its initial position.
+        }
+    }
+    
+    // Step 2: Determine the optimal relative order of shoe pairs.
+    // Create a vector to hold ShoePairInfo objects, one for each unique shoe size.
+    std::vector<ShoePairInfo> pairs;
+    pairs.reserve(n); // Reserve memory for efficiency.
+    
+    // Iterate through the map to extract pair information.
+    for (const auto& entry : positions) {
+        int size = entry.first;
+        int left_pos = entry.second.first;
+        int right_pos = entry.second.second;
+        // Create a ShoePairInfo object and add it to the vector.
+        pairs.emplace_back(size, left_pos, right_pos);
+    }
+    
+    // Sort the pairs based on their `anchor_pos`. This establishes the optimal order:
+    // pairs whose shoes appear earliest in the input sequence will be placed first
+    // in the final arrangement (occupying target slots 0, 1, 2, 3, ...).
+    std::sort(pairs.begin(), pairs.end());
+    
+    // Step 3: Map initial positions to target final positions.
+    // `target_position[initial_index]` will store the desired final 0-indexed position
+    // for the shoe that was initially at `initial_index`.
+    std::vector<int> target_position(total_shoes); 
+    
+    // Assign target positions for each pair based on their sorted order.
+    for (int k = 0; k < n; ++k) {
+        const auto& p = pairs[k]; // Get the k-th optimally ordered pair.
+        
+        // The k-th pair in the optimal sequence is assigned final slots 2*k (for the left shoe)
+        // and 2*k + 1 (for the right shoe).
+        target_position[p.left_pos] = 2 * k; 
+        target_position[p.right_pos] = 2 * k + 1;
+    }
+    
+    // Step 4: Count inversions to find the minimum number of adjacent swaps.
+    // The minimum number of adjacent swaps required to transform one permutation into another
+    // is equal to the number of inversions in the target permutation.
+    FenwickTree ft(total_shoes); // Initialize Fenwick Tree for indices [0, total_shoes-1].
+    long long swaps = 0;         // Use long long for the count of swaps, as it can be large.
+    
+    // Iterate through the shoes based on their initial positions (0 to total_shoes-1).
+    for (int i = 0; i < total_shoes; ++i) {
+        int current_shoe_target_pos = target_position[i];
+        
+        // For the shoe at initial position `i` with target position `current_shoe_target_pos`:
+        // `ft.query(current_shoe_target_pos)` counts how many shoes already processed (i.e., at initial index j < i)
+        // have a target position less than or equal to `current_shoe_target_pos`.
+        int count_leq = ft.query(current_shoe_target_pos);
+        
+        // The total number of shoes processed before index `i` is exactly `i`.
+        // `i - count_leq` calculates the number of shoes already processed (j < i)
+        // whose target position is *greater* than `current_shoe_target_pos`.
+        // Each such shoe forms an inversion with the current shoe.
+        swaps += (long long)i - count_leq;
+        
+        // Mark the `current_shoe_target_pos` as processed by updating the Fenwick Tree.
+        // This signifies that a shoe destined for this final position has been encountered.
+        ft.update(current_shoe_target_pos, 1);
+    }
+    
+    // Output the total minimum number of adjacent swaps.
+    std::cout << swaps << "\n";
+    
+    return 0;
+}
+
+=== Code Variant 10 ===
+#include <iostream>
+#include <vector>
+#include <map>
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+
+using namespace std;
+
+/**
+ * @brief Fenwick Tree (Binary Indexed Tree) for 0-indexed point updates and prefix sum queries.
+ */
+class FenwickTree {
+private:
+    vector<int> tree;
+    int size; // Max index + 1 (N, if indices are 0 to N-1)
+
+public:
+    // n is the size of the array (range 0 to n-1)
+    explicit FenwickTree(int n) : size(n) {
+        // tree is 1-indexed internally, hence size + 1
+        tree.assign(n + 1, 0); 
+    }
+
+    // Add delta to the element at 0-indexed position idx
+    void update(int idx, int delta) {
+        // Convert 0-based idx to 1-based index i = idx + 1
+        for (int i = idx + 1; i <= size; i += i & -i) {
+            tree[i] += delta;
+        }
+    }
+
+    // Get sum of elements from position 0 to idx (0-indexed, inclusive)
+    // Counts elements whose value is <= idx
+    int query(int idx) const {
+        int res = 0;
+        // Convert 0-based idx to 1-based index i = idx + 1
+        for (int i = idx + 1; i > 0; i -= i & -i) {
+            res += tree[i];
+        }
+        return res;
+    }
+};
+
+// Structure to hold information about a pair of shoes
+struct ShoePairInfo {
+    int size;
+    int left_pos;
+    int right_pos;
+    int anchor_pos; // min(left_pos, right_pos) - The sorting key
+
+    ShoePairInfo(int s, int l, int r) : size(s), left_pos(l), right_pos(r) {
+        anchor_pos = min(l, r);
+    }
+    
+    // Comparison operator for sorting based on the earliest appearance (anchor_pos)
+    bool operator<(const ShoePairInfo& other) const {
+        return anchor_pos < other.anchor_pos;
+    }
+};
+
+
+void solve() {
+    int n;
+    if (!(cin >> n)) return;
+    const int total_shoes = 2 * n;
+    
+    // Map: size -> {left_pos, right_pos}
+    // Using map to automatically handle unique sizes. Positions initialized to 0 implicitly by operator[].
+    map<int, pair<int, int>> positions; 
+    
+    // 1. Parse input and record initial positions (0-indexed)
+    for (int i = 0; i < total_shoes; ++i) {
+        int shoe_val;
+        cin >> shoe_val;
+        int size = abs(shoe_val);
+        
+        auto& pr = positions[size]; 
+        
+        if (shoe_val < 0) {
+            pr.first = i;      // Left shoe position
+        } else {
+            pr.second = i;     // Right shoe position
+        }
+    }
+    
+    // 2. Determine the optimal relative order of pairs
+    vector<ShoePairInfo> pairs;
+    pairs.reserve(n);
+    
+    for (const auto& entry : positions) {
+        pairs.emplace_back(entry.first, entry.second.first, entry.second.second);
+    }
+    
+    // Sort optimally: pairs whose shoes appear earliest get the first slots (0, 1), (2, 3), ...
+    sort(pairs.begin(), pairs.end());
+    
+    // 3. Map initial positions to target positions
+    // target_position[initial_index] = final_index (0 to 2n-1)
+    vector<int> target_position(total_shoes); 
+    
+    for (int k = 0; k < n; ++k) {
+        const auto& p = pairs[k];
+        
+        // k-th optimally ordered pair goes to slots 2k (left) and 2k+1 (right)
+        target_position[p.left_pos] = 2 * k; 
+        target_position[p.right_pos] = 2 * k + 1;
+    }
+    
+    // 4. Count inversions (minimum adjacent swaps)
+    FenwickTree ft(total_shoes);
+    long long swaps = 0;
+    
+    // Iterate through the initial sequence index i
+    for (int i = 0; i < total_shoes; ++i) {
+        int target_pos = target_position[i];
+        
+        // ft.query(target_pos) counts elements processed before i (j < i) whose target T[j] <= T[i].
+        int count_le = ft.query(target_pos);
+        
+        // Inversions = Total processed (i) - Count processed with T[j] <= T[i]
+        // This yields the count of processed elements with T[j] > T[i].
+        swaps += (long long)i - count_le;
+        
+        // Mark T[i] as processed
+        ft.update(target_pos, 1);
+    }
+    
+    cout << swaps << "\n";
+}
+
+int main() {
+    // Optimization for speed
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    solve();
+
+    return 0;
+}
+
+=== Code Variant 11 ===
+#include <iostream>
+#include <vector>
+#include <map>
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+
+using namespace std;
+
+/**
+ * @brief Fenwick Tree (Binary Indexed Tree) for efficient prefix sum queries and updates.
+ * Used here to count elements smaller/less-equal than a value already processed in O(log N).
+ */
+class FenwickTree {
+private:
+    vector<int> tree;
+    int size; // Max index + 1 (M, if indices are 0 to M-1)
+
+public:
+    // n is the size of the array (range 0 to n-1)
+    explicit FenwickTree(int n) : size(n) {
+        // tree is 1-indexed internally, hence size + 1
+        tree.assign(n + 1, 0); 
+    }
+
+    // Add delta to the element at 0-indexed position idx
+    void update(int idx, int delta) {
+        // Convert 0-based idx to 1-based index i = idx + 1
+        for (int i = idx + 1; i <= size; i += i & -i) {
+            tree[i] += delta;
+        }
+    }
+
+    // Get sum of elements from position 0 to idx (0-indexed, inclusive)
+    // Counts how many items have been added at indices <= idx.
+    int query(int idx) const {
+        int res = 0;
+        // Convert 0-based idx to 1-based index i = idx + 1
+        for (int i = idx + 1; i > 0; i -= i & -i) {
+            res += tree[i];
+        }
+        return res;
+    }
+};
+
+// Structure to hold information about a pair and its sorting key
+struct ShoePairInfo {
+    int size;
+    int left_pos;
+    int right_pos;
+    int anchor_pos; // min(left_pos, right_pos) - The greedy sorting key
+
+    ShoePairInfo(int s, int l, int r) : size(s), left_pos(l), right_pos(r) {
+        anchor_pos = min(l, r);
+    }
+    
+    // Comparison operator used for std::sort: sort by the earliest appearance (anchor_pos)
+    bool operator<(const ShoePairInfo& other) const {
+        return anchor_pos < other.anchor_pos;
+    }
+};
+
+
+void solve() {
+    int n;
+    if (!(cin >> n)) return;
+    const int total_shoes = 2 * n;
+    
+    // 1. Parse input and record initial positions (0-indexed)
+    // Map: size -> {left_pos, right_pos}
+    map<int, pair<int, int>> positions; 
+    
+    for (int i = 0; i < total_shoes; ++i) {
+        int shoe_val;
+        cin >> shoe_val;
+        int size = abs(shoe_val);
+        
+        // Access or create the entry. std::map default constructs if not found.
+        auto& pr = positions[size]; 
+        
+        if (shoe_val < 0) {
+            pr.first = i;      // Left shoe position
+        } else {
+            pr.second = i;     // Right shoe position
+        }
+    }
+    
+    // 2. Determine the optimal relative order of pairs
+    vector<ShoePairInfo> pairs;
+    pairs.reserve(n);
+    
+    for (const auto& entry : positions) {
+        pairs.emplace_back(entry.first, entry.second.first, entry.second.second);
+    }
+    
+    // Sort optimally: pairs whose shoes appear earliest must take the earliest target slots (0, 1), (2, 3), ...
+    sort(pairs.begin(), pairs.end());
+    
+    // 3. Map initial positions to target positions
+    // target_position[initial_index] = final_index (0 to 2n-1)
+    vector<int> target_position(total_shoes); 
+    
+    for (int k = 0; k < n; ++k) {
+        const auto& p = pairs[k];
+        
+        // k-th optimally ordered pair goes to slots 2k and 2k+1
+        target_position[p.left_pos] = 2 * k; 
+        target_position[p.right_pos] = 2 * k + 1;
+    }
+    
+    // 4. Count inversions (minimum adjacent swaps)
+    FenwickTree ft(total_shoes);
+    long long swaps = 0;
+    
+    // Iterate through the initial sequence index i
+    for (int i = 0; i < total_shoes; ++i) {
+        int target_pos = target_position[i];
+        
+        // ft.query(target_pos) counts elements processed before i (j < i) with T[j] <= T[i].
+        int count_le = ft.query(target_pos);
+        
+        // Inversions involving T[i] are the count of elements processed before i (total 'i')
+        // whose target position is GREATER than T[i].
+        swaps += (long long)i - count_le;
+        
+        // Mark T[i] as processed
+        ft.update(target_pos, 1);
+    }
+    
+    cout << swaps << "\n";
+}
+
+int main() {
+    // Optimization for speed
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    solve();
+
+    return 0;
+}
+
+=== Code Variant 12 ===
+#include <iostream>
+#include <vector>
+#include <map>
+#include <algorithm>
+#include <cmath>
+
+using namespace std;
+
+// Fenwick Tree (Binary Indexed Tree) for efficient prefix sum queries and updates
+class FenwickTree {
+private:
+    vector<int> tree;
+    int size;
+
+public:
+    explicit FenwickTree(int n) : size(n) {
+        tree.assign(n + 1, 0);
+    }
+
+    // Add delta to the element at 0-indexed position idx
+    void update(int idx, int delta) {
+        for (++idx; idx <= size; idx += idx & -idx) {
+            tree[idx] += delta;
+        }
+    }
+
+    // Get sum of elements from position 0 to idx (0-indexed, inclusive)
+    int query(int idx) const {
+        int res = 0;
+        for (++idx; idx > 0; idx -= idx & -idx) {
+            res += tree[idx];
+        }
+        return res;
+    }
+};
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    int n;
+    cin >> n;
+    const int m = 2 * n;
+    
+    // Map each shoe size to its left and right positions
+    map<int, pair<int, int>> positions; // size -> {left_pos, right_pos}
+    
+    for (int i = 0; i < m; ++i) {
+        int shoe;
+        cin >> shoe;
+        int size = abs(shoe);
+        
+        if (positions.find(size) == positions.end()) {
+            positions[size] = {-1, -1};
+        }
+        
+        if (shoe < 0) {
+            positions[size].first = i;  // Left shoe
+        } else {
+            positions[size].second = i; // Right shoe
+        }
+    }
+    
+    // Create pairs and sort by the earliest appearance of either shoe
+    vector<pair<int, int>> pairs; // {min_position, size}
+    for (const auto& entry : positions) {
+        int size = entry.first;
+        int left_pos = entry.second.first;
+        int right_pos = entry.second.second;
+        pairs.push_back({min(left_pos, right_pos), size});
+    }
+    
+    sort(pairs.begin(), pairs.end());
+    
+    // Determine the target position for each shoe in the optimal arrangement
+    vector<int> target_position(m); // target_position[initial_index] = final_position
+    for (int i = 0; i < n; ++i) {
+        int size = pairs[i].second;
+        int left_pos = positions[size].first;
+        int right_pos = positions[size].second;
+        
+        target_position[left_pos] = 2 * i;
+        target_position[right_pos] = 2 * i + 1;
+    }
+    
+    // Count inversions using Fenwick Tree
+    // An inversion is a pair (i,j) where i < j but target_position[i] > target_position[j]
+    FenwickTree ft(m);
+    long long swaps = 0;
+    
+    for (int i = 0; i < m; ++i) {
+        int pos = target_position[i];
+        // Count how many elements already processed have value > pos
+        // This is equal to: (number of elements processed) - (number of elements <= pos)
+        swaps += i - ft.query(pos);
+        ft.update(pos, 1);
+    }
+    
+    cout << swaps << "\n";
+    
+    return 0;
+}
+
+=== Code Variant 13 ===
+#include <iostream>
+#include <vector>
+#include <map> // Using map as requested by the plan
+#include <algorithm> // For std::sort, std::min
+#include <cmath>     // For std::abs
+#include <cstdint>   // For std::int64_t if preferred over long long
+
+// Fenwick Tree (Binary Indexed Tree) for efficient prefix sum queries and updates.
+// Supports 0-indexed operations externally, converting to 1-indexed internally.
+class FenwickTree {
+private:
+    std::vector<int> tree; // 1-based internal storage for BIT
+    int size;              // Maximum valid 0-indexed value + 1 (i.e., array_size)
+
+public:
+    // Constructor: Initializes the Fenwick Tree for a range of 0 to n-1.
+    // 'n' represents the total number of distinct values/indices the tree needs to cover.
+    explicit FenwickTree(int n) : size(n) {
+        // The internal BIT array (tree) is 1-indexed, so it needs size n+1 elements.
+        tree.assign(n + 1, 0);
+    }
+
+    // Adds 'delta' to the element at the 0-indexed position 'idx'.
+    // This propagates the change up the tree structure.
+    void update(int idx, int delta) {
+        // Convert the 0-based 'idx' to a 1-based index for the internal tree.
+        for (++idx; idx <= size; idx += idx & -idx) {
+            tree[idx] += delta;
+        }
+    }
+
+    // Queries the cumulative sum of elements from 0-indexed position 0 to 'idx' (inclusive).
+    // This traverses down the tree to accumulate relevant sums.
+    int query(int idx) const {
+        int res = 0;
+        // Convert the 0-based 'idx' to a 1-based index for the internal tree.
+        for (++idx; idx > 0; idx -= idx & -idx) {
+            res += tree[idx];
+        }
+        return res;
+    }
+};
+
+// Structure to hold information about a pair of shoes.
+// This helps in organizing data for sorting and assigning target positions.
+struct ShoePairInfo {
+    int size;         // The actual shoe size.
+    int left_pos;     // Initial 0-indexed position of the left shoe.
+    int right_pos;    // Initial 0-indexed position of the right shoe.
+    int anchor_pos;   // The minimum of left_pos and right_pos, used as the primary sorting key.
+
+    // Constructor to initialize a ShoePairInfo object.
+    ShoePairInfo(int s, int l, int r) : size(s), left_pos(l), right_pos(r) {
+        anchor_pos = std::min(l, r); // Calculate the anchor position.
+    }
+    
+    // Custom comparison operator for sorting ShoePairInfo objects.
+    // Sorts primarily by 'anchor_pos' (earliest appearance).
+    // If anchor_pos are equal, the problem does not specify a tie-breaking rule,
+    // so default behavior (e.g., by size or left_pos) is fine as any order will result in same swap count.
+    bool operator<(const ShoePairInfo& other) const {
+        return anchor_pos < other.anchor_pos;
+    }
+};
+
+int main() {
+    // Optimize C++ standard streams for competitive programming (faster I/O).
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+
+    int n; // Number of shoe pairs.
+    // Read n. If input fails (e.g., EOF or invalid input), exit the program.
+    if (!(std::cin >> n)) {
+        return 0;
+    }
+    const int total_shoes = 2 * n; // Total number of individual shoes (M in problem description).
+
+    // Step 1: Parse Input and Store Initial Positions.
+    // Use a map to store the initial 0-indexed positions for each shoe size.
+    // Key: absolute shoe size. Value: pair of {left_shoe_pos, right_shoe_pos}.
+    // std::map is chosen as per the plan, it guarantees log(N) access.
+    std::map<int, std::pair<int, int>> positions; 
+    
+    for (int i = 0; i < total_shoes; ++i) {
+        int shoe_value;
+        std::cin >> shoe_value;
+        int size = std::abs(shoe_value); // The size of the shoe is its absolute value.
+        
+        // Access the pair for this shoe size. If it doesn't exist, map::operator[]
+        // will default-construct it to {0,0}. This is acceptable as actual positions
+        // will be overwritten with 'i'.
+        auto& current_pair_pos = positions[size]; 
+        
+        if (shoe_value < 0) { // If shoe_value is negative, it's a left shoe.
+            current_pair_pos.first = i;  // Store its initial position.
+        } else { // If shoe_value is positive, it's a right shoe.
+            current_pair_pos.second = i; // Store its initial position.
+        }
+    }
+    
+    // Step 2: Determine the Optimal Relative Order of Pairs.
+    // Create a vector of ShoePairInfo objects to encapsulate pair data and the sorting key.
+    std::vector<ShoePairInfo> pairs;
+    pairs.reserve(n); // Pre-allocate memory for efficiency.
+    
+    // Populate the 'pairs' vector from the 'positions' map.
+    for (const auto& entry : positions) {
+        pairs.emplace_back(entry.first, entry.second.first, entry.second.second);
+    }
+    
+    // Sort the pairs. The custom '<' operator in ShoePairInfo sorts them by 'anchor_pos'.
+    // This greedy strategy ensures that pairs whose shoes appear earliest in the initial
+    // sequence are prioritized to be placed first in the target arrangement.
+    std::sort(pairs.begin(), pairs.end());
+    
+    // Step 3: Map Initial Positions to Target Final Positions.
+    // This vector will store the target final position for each shoe based on its
+    // initial 0-indexed position. `target_position[initial_idx] = final_idx`.
+    std::vector<int> target_position(total_shoes); 
+    
+    for (int k = 0; k < n; ++k) {
+        const auto& p = pairs[k]; // Get the k-th pair in the optimal sorted order.
+        
+        // The k-th optimally ordered pair will occupy target slots 2*k and 2*k + 1.
+        // The left shoe of this pair goes to the even slot.
+        target_position[p.left_pos] = 2 * k; 
+        // The right shoe of this pair goes to the next odd slot.
+        target_position[p.right_pos] = 2 * k + 1;
+    }
+    
+    // Step 4: Count Inversions (Minimum Adjacent Swaps).
+    // The minimum number of adjacent swaps required to transform one permutation
+    // into another is equal to the number of inversions between them.
+    // We are counting inversions in the `target_position` array.
+    FenwickTree ft(total_shoes); // Initialize Fenwick Tree to cover the range of target positions [0, total_shoes-1].
+    long long total_swaps = 0;   // Use long long to prevent overflow, as swaps can be up to O(M^2).
+    
+    // Iterate through the shoes by their initial positions (0 to total_shoes-1).
+    for (int i = 0; i < total_shoes; ++i) {
+        int current_shoe_target_pos = target_position[i];
+        
+        // `ft.query(current_shoe_target_pos)` returns the count of shoes processed so far
+        // (i.e., those with initial indices `j < i`) whose target positions `target_position[j]`
+        // are less than or equal to `current_shoe_target_pos`.
+        int count_less_equal = ft.query(current_shoe_target_pos);
+        
+        // The total number of shoes processed before the current one (at index 'i') is 'i'.
+        // The number of shoes processed before 'i' whose target positions are *greater* than
+        // `current_shoe_target_pos` is `i - count_less_equal`.
+        // Each such shoe forms an inversion with the current shoe.
+        total_swaps += (long long)i - count_less_equal;
+        
+        // Mark `current_shoe_target_pos` as having been seen by adding 1 to its count in the Fenwick Tree.
+        ft.update(current_shoe_target_pos, 1);
+    }
+    
+    // Output the total minimum number of adjacent swaps required.
+    std::cout << total_swaps << "\n";
+    
+    return 0;
+}
+
+=== Code Variant 14 ===
+#include <iostream>
+#include <vector>
+#include <map>
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <utility>
+
+using namespace std;
+
+/**
+ * @brief Fenwick Tree (Binary Indexed Tree) for 0-indexed operations.
+ * Supports point updates and prefix sum queries, used here for inversion counting.
+ */
+class FenwickTree {
+private:
+    vector<int> tree;
+    int size; // Max index + 1 (N, if indices are 0 to N-1)
+
+public:
+    /**
+     * @brief Constructs a Fenwick Tree for a range of indices [0, n-1].
+     */
+    explicit FenwickTree(int n) : size(n) {
+        // Internal array is 1-indexed, hence size + 1
+        tree.assign(n + 1, 0); 
+    }
+
+    /**
+     * @brief Adds delta to the element at 0-indexed position idx.
+     */
+    void update(int idx, int delta) {
+        // Convert 0-based idx to 1-based index
+        for (int i = idx + 1; i <= size; i += i & -i) {
+            tree[i] += delta;
+        }
+    }
+
+    /**
+     * @brief Gets the prefix sum of elements from position 0 to idx (0-indexed, inclusive).
+     * This counts how many items added so far have a value (target position) <= idx.
+     */
+    int query(int idx) const {
+        int res = 0;
+        // Convert 0-based idx to 1-based index
+        for (int i = idx + 1; i > 0; i -= i & -i) {
+            res += tree[i];
+        }
+        return res;
+    }
+};
+
+// Structure to hold information about a pair and its sorting key
+struct ShoePairInfo {
+    int size;
+    int left_pos;
+    int right_pos;
+    int anchor_pos; // min(left_pos, right_pos)
+
+    ShoePairInfo(int s, int l, int r) : size(s), left_pos(l), right_pos(r) {
+        anchor_pos = min(l, r);
+    }
+    
+    // Custom comparison function for sorting based on the earliest appearance
+    bool operator<(const ShoePairInfo& other) const {
+        return anchor_pos < other.anchor_pos;
+    }
+};
+
+
+void solve() {
+    int n;
+    if (!(cin >> n)) return;
+    const int total_shoes = 2 * n; // M = 2N
+    
+    // Map: size -> {left_pos, right_pos}
+    map<int, pair<int, int>> positions; 
+    
+    // 1. Parse input and record initial positions (0-indexed)
+    for (int i = 0; i < total_shoes; ++i) {
+        int shoe_val;
+        cin >> shoe_val;
+        int size = abs(shoe_val);
+        
+        // Access or create the pair in the map. Default construction is fine, 
+        // as we overwrite both positions uniquely for each size.
+        auto& pr = positions[size]; 
+        
+        if (shoe_val < 0) {
+            pr.first = i;      // Left shoe position
+        } else {
+            pr.second = i;     // Right shoe position
+        }
+    }
+    
+    // 2. Determine the optimal relative order of pairs
+    vector<ShoePairInfo> pairs;
+    pairs.reserve(n);
+    
+    for (const auto& entry : positions) {
+        pairs.emplace_back(entry.first, entry.second.first, entry.second.second);
+    }
+    
+    // Sort optimally: pairs appearing earliest get the lowest target indices.
+    sort(pairs.begin(), pairs.end());
+    
+    // 3. Map initial positions to target positions
+    // target_position[initial_index] = final_index (0 to 2n-1)
+    vector<int> target_position(total_shoes); 
+    
+    for (int k = 0; k < n; ++k) {
+        const auto& p = pairs[k];
+        
+        // k-th optimally ordered pair goes to slots 2k (left) and 2k+1 (right)
+        target_position[p.left_pos] = 2 * k; 
+        target_position[p.right_pos] = 2 * k + 1;
+    }
+    
+    // 4. Count inversions (minimum adjacent swaps)
+    // We count inversions in the target permutation T[0], T[1], ..., T[M-1].
+    FenwickTree ft(total_shoes);
+    long long swaps = 0;
+    
+    // Iterate through the initial sequence index i
+    for (int i = 0; i < total_shoes; ++i) {
+        int target_pos = target_position[i];
+        
+        // count_le: Number of shoes processed before i (j < i) whose target position T[j] <= T[i].
+        int count_le = ft.query(target_pos);
+        
+        // Total elements processed before i is exactly i.
+        // Inversions formed by T[i] = (Total elements processed) - (Count <= T[i])
+        // This gives the count of elements T[j] > T[i] where j < i.
+        swaps += (long long)i - count_le;
+        
+        // Mark T[i] as processed
+        ft.update(target_pos, 1);
+    }
+    
+    cout << swaps << "\n";
+}
+
+int main() {
+    // Optimization for speed
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    solve();
+
+    return 0;
+}
+

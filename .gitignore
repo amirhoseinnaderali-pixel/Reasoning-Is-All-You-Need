@@ -1,0 +1,10 @@
+.env
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+pipeline_results*/
+
+results/
+experiments/runs/
+*.log

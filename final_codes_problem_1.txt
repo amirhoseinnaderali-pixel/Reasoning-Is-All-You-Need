@@ -1,0 +1,975 @@
+=== Code Variant 1 ===
+#include <bits/stdc++.h>
+using namespace std;
+
+/*
+ * The judge supplies this function.
+ * It reveals the card at position `idx` (0‑based, 0 … 49) and returns its
+ * letter ('A' … 'Y'). After every two calls the two revealed cards are turned
+ * face‑down again. Matching a pair the first time both copies are face‑up
+ * collects a candy.
+ */
+extern char faceup(int idx);
+
+int main() {
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
+
+    constexpr int TOTAL_CARDS = 50;   // 25 letters × 2
+    constexpr int LETTERS    = 25;   // 'A' … 'Y'
+
+    // first[pos] = index of the first occurrence of the letter,
+    // -1 means we haven't seen it yet (or it has already been matched).
+    array<int, LETTERS> first;
+    first.fill(-1);
+
+    for (int i = 0; i < TOTAL_CARDS; ++i) {
+        char ch = faceup(i);          // reveal card i
+        int id = ch - 'A';            // map 'A'‑'Y' → 0‑24
+
+        if (first[id] != -1) {
+            // Second occurrence: match the pair immediately.
+            faceup(first[id]);
+            first[id] = -1;           // optional cleanup
+        } else {
+            // First occurrence: remember its position.
+            first[id] = i;
+        }
+    }
+
+    return 0;   // all 25 candies have been collected
+}
+
+=== Code Variant 2 ===
+#include <iostream> // Required for std::ios_base::sync_with_stdio and std::cin.tie (common competitive programming boilerplate)
+#include <array>    // Required for std::array, used to store first occurrences
+
+// The 'faceup' function is provided by the external judge system.
+// It reveals the card at position `index` (0-based, 0 to 49) and returns
+// the character ('A' through 'Y') on that card.
+// Crucially, after every two calls to `faceup()`, both revealed cards
+// automatically flip back face-down.
+extern char faceup(int index);
+
+/**
+ * @brief Solves the IOI 2010 "Memory" problem using the Deterministic First-Occurrence Matching strategy.
+ *
+ * This algorithm iterates through all 50 cards sequentially. It keeps track of
+ * the position of the first time each unique letter ('A' through 'Y') is encountered.
+ *
+ * Algorithm Steps:
+ * 1. Initialize a `std::array<int, 25>` named `first_occurrence_pos`. Each element
+ *    is initialized to -1, signifying that the corresponding letter has not yet been seen.
+ *    (Index 0 for 'A', 1 for 'B', ..., 24 for 'Y').
+ * 2. Iterate through card positions `i` from 0 to 49:
+ *    a. Call `char revealed_char = faceup(i);` This is the first `faceup()` call of a potential pair.
+ *    b. Convert `revealed_char` into a 0-based index: `int letter_idx = revealed_char - 'A';`.
+ *    c. Check the `first_occurrence_pos` array for `letter_idx`:
+ *       i. If `first_occurrence_pos[letter_idx]` is NOT -1:
+ *          This indicates we have previously seen this `revealed_char` at the position stored in
+ *          `first_occurrence_pos[letter_idx]`. This is the *second occurrence*.
+ *          To match the pair and collect a candy, we must reveal the first occurrence.
+ *          Call `faceup(first_occurrence_pos[letter_idx]);`. This is the second `faceup()` call
+ *          in a sequence of two, which causes both cards (at `i` and `first_occurrence_pos[letter_idx]`)
+ *          to be face-up simultaneously. A candy is collected, and then both cards turn face-down.
+ *          The `first_occurrence_pos` entry can optionally be reset to -1, as this pair is now matched.
+ *       ii. If `first_occurrence_pos[letter_idx]` IS -1:
+ *           This is the *first occurrence* of this `revealed_char`. Store its current position:
+ *           `first_occurrence_pos[letter_idx] = i;`.
+ *
+ * Call Count Analysis:
+ * - Each of the 50 cards is revealed once initially by `faceup(i)`. This accounts for 50 calls.
+ * - When the second occurrence of a letter is found (there are 25 such occurrences in total,
+ *   one for each unique letter), one additional `faceup()` call is made to reveal its matching
+ *   first occurrence. This accounts for 25 additional calls.
+ * - Total `faceup()` calls = 50 + 25 = 75. This is well within the allowed limit of 100 calls for full points.
+ *
+ * Time Complexity: O(N), where N is the total number of cards (50). Each card is processed once with constant time operations.
+ * Space Complexity: O(K), where K is the number of unique letters (25). A fixed-size `std::array` is used.
+ */
+void solve() {
+    constexpr int NUM_CARDS = 50;           // Total number of cards on the board
+    constexpr int NUM_UNIQUE_LETTERS = 25;  // 'A' through 'Y' are 25 unique letters
+
+    // `first_occurrence_pos[letter_idx]` stores the 0-indexed position (0-49)
+    // where `letter_idx` ('A'=0, 'B'=1, ..., 'Y'=24) was first seen.
+    // Initialized to -1 to indicate that the letter has not been encountered yet.
+    std::array<int, NUM_UNIQUE_LETTERS> first_occurrence_pos;
+    first_occurrence_pos.fill(-1); // Fills all elements with -1
+
+    // Iterate through all 50 card positions sequentially.
+    for (int i = 0; i < NUM_CARDS; ++i) {
+        // Reveal the card at the current position `i`. This is one `faceup` call.
+        const char revealed_char = faceup(i);
+
+        // Convert the character ('A'-'Y') to a 0-based integer index (0-24).
+        const int letter_idx = revealed_char - 'A';
+
+        // Check if we have seen this letter before.
+        if (first_occurrence_pos[letter_idx] != -1) {
+            // This is the second occurrence of `revealed_char`. A pair has been found!
+            // The card at position `i` is currently face-up.
+            // To match the pair, we now reveal the card at its first recorded position.
+            faceup(first_occurrence_pos[letter_idx]); // This is the second `faceup` call for this pair.
+
+            // Optional: This pair is now matched. We can clear its entry from `first_occurrence_pos`.
+            // While not strictly necessary for correctness (as each letter appears exactly twice),
+            // it keeps the array tidy and explicitly marks that this specific letter pair has been processed.
+            first_occurrence_pos[letter_idx] = -1;
+        } else {
+            // This is the first time we've encountered `revealed_char`.
+            // Store its current position `i` so we can use it to match later when its pair is found.
+            first_occurrence_pos[letter_idx] = i;
+        }
+    }
+}
+
+int main() {
+    // Fast I/O optimizations for competitive programming.
+    // While not strictly necessary for this problem (as there is no standard input/output
+    // for the game logic itself), it's a common practice in competitive programming
+    // and harmless boilerplate to include.
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+
+    // Execute the problem-solving logic.
+    solve();
+
+    return 0; // Indicate successful program execution after all pairs have been collected.
+}
+
+=== Code Variant 3 ===
+#include <vector>
+#include <array>
+
+// The faceup function is provided by the external judge system
+extern char faceup(int card_index);
+
+// Solves the Memory game using deterministic first-occurrence matching strategy
+void solve() {
+    // Track first occurrence of each letter (A-Y: indices 0-24)
+    // -1 indicates letter hasn't been seen yet
+    std::array<int, 25> first_occurrence;
+    first_occurrence.fill(-1);
+    
+    // Process all 50 cards
+    for (int i = 0; i < 50; ++i) {
+        // Reveal current card
+        char card = faceup(i);
+        int letter_idx = card - 'A'; // Convert 'A'-'Y' to 0-24
+        
+        // Check if this is the second occurrence of this letter
+        if (first_occurrence[letter_idx] != -1) {
+            // Match the pair by revealing the first occurrence
+            faceup(first_occurrence[letter_idx]);
+            // Optional: Reset entry (not necessary for correctness)
+            first_occurrence[letter_idx] = -1;
+        } else {
+            // First occurrence: store its position
+            first_occurrence[letter_idx] = i;
+        }
+    }
+}
+
+int main() {
+    solve();
+    return 0;
+}
+
+=== Code Variant 4 ===
+#include <vector>
+
+// The 'faceup' function is provided by the external judge system
+extern char faceup(int card_index);
+
+int main() {
+    const int TOTAL_CARDS = 50;
+    const int LETTERS_COUNT = 25; // 'A' to 'Y'
+    
+    // Track first occurrence of each letter, -1 means not seen yet
+    std::vector<int> first_occurrence(LETTERS_COUNT, -1);
+    
+    for (int i = 0; i < TOTAL_CARDS; ++i) {
+        char letter = faceup(i);
+        int letter_index = letter - 'A';
+        
+        if (first_occurrence[letter_index] != -1) {
+            // Second occurrence found - match with first occurrence
+            faceup(first_occurrence[letter_index]);
+        } else {
+            // First occurrence - store the position
+            first_occurrence[letter_index] = i;
+        }
+    }
+    
+    return 0;
+}
+
+=== Code Variant 5 ===
+#include <iostream>
+#include <array>
+
+// The 'faceup' function is provided by the external judge system.
+// It takes a card index (0-49) and returns the character on that card.
+// After every two calls, both revealed cards automatically flip back face-down.
+extern char faceup(int index);
+
+/**
+ * @brief Solves the IOI 2010 "Memory" problem using deterministic first-occurrence matching.
+ *
+ * This strategy iterates through all 50 cards. When a card is encountered:
+ * - If its letter was seen before, we immediately call faceup on the first occurrence
+ *   to make a match (collecting a candy).
+ * - Otherwise, we store the position of this first occurrence.
+ *
+ * Time Complexity: O(N) where N=50
+ * Space Complexity: O(K) where K=25 (number of unique letters)
+ */
+void solve() {
+    // Array to store the first occurrence index of each letter (A-Y).
+    // Index 0 corresponds to 'A', 1 to 'B', ..., 24 to 'Y'.
+    std::array<int, 25> first_occurrence;
+    first_occurrence.fill(-1);
+
+    // Iterate through all 50 card positions.
+    for (int i = 0; i < 50; ++i) {
+        // Reveal the current card.
+        char letter = faceup(i);
+        int letter_index = letter - 'A';
+
+        // Check if we've seen this letter before.
+        if (first_occurrence[letter_index] != -1) {
+            // Second occurrence found. Match the pair by revealing the first occurrence.
+            faceup(first_occurrence[letter_index]);
+            // Optional: Clear the entry (not necessary for correctness).
+            first_occurrence[letter_index] = -1;
+        } else {
+            // First occurrence. Store its position.
+            first_occurrence[letter_index] = i;
+        }
+    }
+}
+
+int main() {
+    // Fast I/O optimization for competitive programming.
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+
+    // Solve the problem.
+    solve();
+
+    return 0;
+}
+
+=== Code Variant 6 ===
+#include <iostream>
+#include <vector>
+#include <array>
+
+// The `faceup` function is provided by the judge system.
+// It reveals the card at a given 0-based index and returns its character ('A'-'Y').
+// After every two calls, the revealed cards are flipped back face-down.
+extern char faceup(int index);
+
+/**
+ * @brief Solves the "Memory" game using a deterministic first-occurrence matching strategy.
+ *
+ * This strategy iterates through all 50 cards sequentially. It maintains an
+ * array to store the position of the first-seen occurrence of each letter.
+ * When a card is turned over:
+ * 1. If its letter has been seen before, we immediately call `faceup` on the
+ *    stored position of its first occurrence. This forms a matching pair,
+ *    and a candy is collected.
+ * 2. If its letter is new, we store the current card's position.
+ *
+ * This approach guarantees finding all pairs. It uses 50 calls for the initial
+ * scan and one extra call for each of the 25 pairs, totaling 75 calls, which
+ * is well within the 100-call limit.
+ */
+int main() {
+    constexpr int NUM_CARDS = 50;
+    constexpr int NUM_UNIQUE_LETTERS = 25; // 'A' through 'Y'
+
+    // `first_occurrence` stores the index of the first time we see a letter.
+    // The array index corresponds to the letter (0 for 'A', 1 for 'B', etc.).
+    // A value of -1 indicates the letter has not been seen yet.
+    std::array<int, NUM_UNIQUE_LETTERS> first_occurrence;
+    first_occurrence.fill(-1);
+
+    // Iterate through all card positions to find and match pairs.
+    for (int i = 0; i < NUM_CARDS; ++i) {
+        // Reveal the card at the current position. This is the first `faceup`
+        // call of a potential pair of reveals.
+        const char card_letter = faceup(i);
+        const int letter_index = card_letter - 'A';
+
+        if (first_occurrence[letter_index] == -1) {
+            // This is the first time we've seen this letter.
+            // Record its position for when we find its match later.
+            first_occurrence[letter_index] = i;
+        } else {
+            // This is the second occurrence of the letter. We have found a match.
+            // The second `faceup` call reveals the stored position of the first
+            // occurrence, completing the pair and scoring a candy.
+            faceup(first_occurrence[letter_index]);
+        }
+    }
+
+    return 0; // The program terminates after all pairs are found.
+}
+
+=== Code Variant 7 ===
+#include <iostream>
+#include <array>
+#include <algorithm>
+
+// The 'faceup' function is provided by the external contest system.
+// It takes a card index (0-49) and returns the character on that card ('A'-'Y').
+// After every two calls, both revealed cards automatically flip back face-down.
+extern char faceup(int index);
+
+/**
+ * @brief Solves the Memory game using deterministic first-occurrence matching.
+ * 
+ * Strategy:
+ * 1. Iterate through cards 0 to 49 sequentially.
+ * 2. Maintain an array tracking the position of the first seen occurrence of each letter ('A'-'Y').
+ * 3. When the second occurrence of a letter is found at position `i`, immediately call faceup() 
+ *    on the stored first position to match the pair and collect the candy.
+ * 
+ * This strategy uses exactly 50 + 25 = 75 calls, satisfying the <= 100 constraint.
+ */
+void solve() {
+    const int TOTAL_CARDS = 50;
+    const int ALPHABET_SIZE = 25; // Letters 'A' through 'Y'
+
+    // Stores the index (0-49) of the first occurrence for each letter.
+    // Index 0 = 'A', ..., Index 24 = 'Y'.
+    // -1 indicates the letter has not been seen yet.
+    std::array<int, ALPHABET_SIZE> first_occurrence;
+    first_occurrence.fill(-1);
+
+    // Scan all 50 positions sequentially.
+    for (int i = 0; i < TOTAL_CARDS; ++i) {
+        // 1. Reveal the current card at position i. (1st call for this pair, potentially)
+        char revealed_char = faceup(i);
+        int letter_idx = revealed_char - 'A';
+
+        // Check if we've seen this letter before.
+        if (first_occurrence[letter_idx] != -1) {
+            // Second occurrence found. Match the pair immediately.
+            int first_pos = first_occurrence[letter_idx];
+            
+            // 2. Reveal the stored first occurrence to complete the match. (2nd call for this pair)
+            faceup(first_pos);
+            
+            // Mark the pair as solved (optional cleanup).
+            first_occurrence[letter_idx] = -1;
+        } else {
+            // First occurrence. Store its position.
+            first_occurrence[letter_idx] = i;
+        }
+    }
+}
+
+int main() {
+    // No standard I/O needed, just execute the strategy.
+    solve();
+    return 0;
+}
+
+=== Code Variant 8 ===
+#include <iostream>
+#include <vector>
+#include <array>
+
+/**
+ * The judge provides this function.
+ * It reveals the card at position `idx` (0-based, 0 to 49) and returns its
+ * letter ('A' to 'Y'). After every two calls, the two revealed cards are turned
+ * face-down again. A candy is collected the first time both copies of a
+ * letter are face-up simultaneously.
+ */
+extern char faceup(int idx);
+
+/**
+ * @brief Solves the IOI 2010 "Memory" problem using a Deterministic First-Occurrence Matching strategy.
+ *
+ * This algorithm iterates through all 50 card positions sequentially. It uses an
+ * array to store the position of the first time each unique letter is seen.
+ *
+ * Algorithm:
+ * 1. Initialize an array `first_occurrence` of size 25 (for letters 'A'-'Y') with a
+ *    sentinel value (e.g., -1) to signify that no letter has been seen yet.
+ * 2. Loop through each card index `i` from 0 to 49.
+ * 3. In each iteration, call `faceup(i)` to reveal the card's letter. This is the
+ *    first `faceup` call in a potential pair of calls.
+ * 4. Check the `first_occurrence` array for the revealed letter:
+ *    a. If this is the first time the letter has been seen (entry is -1),
+ *       store the current index `i` in the array.
+ *    b. If the letter has been seen before (entry is not -1), we have found
+ *       its match. The first card of the pair is at the stored index, and the
+ *       second is at the current index `i`. Since the card at `i` is already
+ *       face-up, we immediately call `faceup()` on the stored index. This is
+ *       the second call, which places both matching cards face-up at the same
+ *       time, collecting a candy. The two cards then flip back down.
+ *
+ * Call Count Analysis:
+ * - The main loop makes exactly 50 calls to `faceup()`, one for each card position.
+ * - Each time the second card of a pair is found, one additional `faceup()` call
+ *   is made to match it. This occurs for each of the 25 pairs.
+ * - Total calls = 50 (initial scan) + 25 (matching calls) = 75.
+ *   This is well within the 100-call limit for full points.
+ *
+ * Time Complexity: O(N), where N is the total number of cards (50).
+ * Space Complexity: O(K), where K is the number of unique letters (25).
+ */
+int main() {
+    // Fast I/O optimization is common in competitive programming, but not strictly
+    // necessary for this problem as all interaction is via `faceup()`.
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+
+    constexpr int TOTAL_CARDS = 50;
+    constexpr int NUM_UNIQUE_LETTERS = 25;
+
+    // Use std::array for fixed-size storage. `first_occurrence[i]` will store
+    // the board index of the first time we see the letter ('A' + i).
+    // A value of -1 indicates the letter has not been seen yet.
+    std::array<int, NUM_UNIQUE_LETTERS> first_occurrence;
+    first_occurrence.fill(-1);
+
+    // Iterate through all card positions to find and match pairs.
+    for (int i = 0; i < TOTAL_CARDS; ++i) {
+        // Reveal the card at the current position.
+        const char card_letter = faceup(i);
+        const int letter_index = card_letter - 'A';
+
+        if (first_occurrence[letter_index] == -1) {
+            // This is the first time we've seen this letter.
+            // Record its position for when we find its match later.
+            first_occurrence[letter_index] = i;
+        } else {
+            // This is the second occurrence. We have found a match.
+            // The card at `i` is already face-up. To complete the pair,
+            // we immediately reveal the card at the stored position of the
+            // first occurrence.
+            faceup(first_occurrence[letter_index]);
+        }
+    }
+
+    // By the end of the loop, all 25 pairs will have been found.
+    // The program can now terminate.
+    return 0;
+}
+
+=== Code Variant 9 ===
+#include <iostream>
+#include <vector>
+#include <array>
+
+// The 'faceup' function is provided by the contest system.
+// It takes a card index (0-49) and returns the character on that card.
+extern char faceup(int index);
+
+int main() {
+    std::array<int, 25> first_occurrence;
+    first_occurrence.fill(-1);
+
+    for (int i = 0; i < 50; ++i) {
+        char card = faceup(i);
+        int card_index = card - 'A';
+
+        if (first_occurrence[card_index] != -1) {
+            faceup(first_occurrence[card_index]);
+            first_occurrence[card_index] = -1;
+        } else {
+            first_occurrence[card_index] = i;
+        }
+    }
+
+    return 0;
+}
+
+=== Code Variant 10 ===
+#include <iostream>
+#include <vector>
+#include <array>
+
+// The 'faceup' function is provided by the contest system.
+// It reveals the card at a given 0-based index and returns its character ('A'-'Y').
+// After every two calls, the revealed cards are flipped back face-down.
+extern char faceup(int index);
+
+/**
+ * @brief Solves the "Memory" game using a deterministic first-occurrence matching strategy.
+ *
+ * This strategy iterates through all 50 cards sequentially. It maintains an
+ * array to store the position of the first-seen occurrence of each letter.
+ * When a card is turned over:
+ * 1. If its letter has been seen before, we immediately call `faceup` on the
+ *    stored position of its first occurrence. This forms a matching pair,
+ *    and a candy is collected.
+ * 2. If its letter is new, we store the current card's position.
+ *
+ * This approach guarantees finding all pairs. It uses 50 calls for the initial
+ * scan and one extra call for each of the 25 pairs, totaling 75 calls, which
+ * is well within the 100-call limit.
+ */
+int main() {
+    // Fast I/O is not strictly necessary for this problem as there is no
+    // standard input, but it's a good habit in competitive programming.
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+
+    constexpr int NUM_CARDS = 50;
+    constexpr int NUM_UNIQUE_LETTERS = 25; // 'A' through 'Y'
+
+    // `first_occurrence` stores the index of the first time we see a letter.
+    // The array index corresponds to the letter (0 for 'A', 1 for 'B', etc.).
+    // A value of -1 indicates the letter has not been seen yet.
+    // `std::array` is used as the size is fixed and known at compile-time.
+    std::array<int, NUM_UNIQUE_LETTERS> first_occurrence;
+    first_occurrence.fill(-1);
+
+    // Iterate through all card positions to find and match pairs.
+    for (int i = 0; i < NUM_CARDS; ++i) {
+        // Reveal the card at the current position. This is the first `faceup`
+        // call of a potential pair of reveals.
+        const char card_letter = faceup(i);
+        const int letter_index = card_letter - 'A';
+
+        if (first_occurrence[letter_index] == -1) {
+            // This is the first time we've seen this letter.
+            // Record its position for when we find its match later.
+            first_occurrence[letter_idx] = i;
+        } else {
+            // This is the second occurrence of the letter. We have found a match.
+            // The second `faceup` call reveals the stored position of the first
+            // occurrence, completing the pair and scoring a candy.
+            faceup(first_occurrence[letter_index]);
+            
+            // Optional: Reset the entry. This is not strictly necessary for correctness
+            // since the loop will finish soon after, but it conceptually marks the pair
+            // as resolved.
+            first_occurrence[letter_index] = -1;
+        }
+    }
+
+    return 0; // The program terminates after all pairs are found.
+}
+
+=== Code Variant 11 ===
+#include <array>
+#include <iostream>
+#include <vector>
+
+// The 'faceup' function is provided by the external judge system.
+// It reveals the card at a given 0-based index and returns its character ('A'-'Y').
+// After every two calls, the revealed cards are flipped back face-down.
+extern char faceup(int index);
+
+/**
+ * @brief Solves the "Memory" game using a deterministic first-occurrence matching strategy.
+ *
+ * This strategy iterates through all 50 cards sequentially. It maintains an
+ * array to store the position of the first-seen occurrence of each letter.
+ * When a card is turned over:
+ * 1. If its letter has been seen before, we immediately call `faceup` on the
+ *    stored position of its first occurrence. This forms a matching pair,
+ *    and a candy is collected. This uses two calls for the pair (the current
+ *    reveal and the stored reveal).
+ * 2. If its letter is new, we store the current card's position.
+ *
+ * Total calls: 50 initial calls + 25 matching calls = 75 calls, satisfying the <= 100 constraint.
+ */
+int main() {
+    // Fast I/O optimization (standard practice, though not strictly needed here)
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+
+    constexpr int NUM_CARDS = 50;
+    constexpr int NUM_UNIQUE_LETTERS = 25; // Letters 'A' through 'Y'
+
+    // `first_occurrence` stores the index of the first time we see a letter.
+    // The array index corresponds to the letter (0 for 'A', 1 for 'B', etc.).
+    // A value of -1 indicates the letter has not been seen yet.
+    std::array<int, NUM_UNIQUE_LETTERS> first_occurrence;
+    first_occurrence.fill(-1);
+
+    // Iterate through all card positions to find and match pairs.
+    for (int i = 0; i < NUM_CARDS; ++i) {
+        // 1. Reveal the card at the current position. (First call of a potential pair)
+        const char card_letter = faceup(i);
+        const int letter_index = card_letter - 'A';
+
+        // Sanity check (guaranteed by problem statement: 'A'-'Y')
+        if (letter_index < 0 || letter_index >= NUM_UNIQUE_LETTERS) continue;
+
+        if (first_occurrence[letter_index] == -1) {
+            // This is the first time we've seen this letter.
+            // Record its position for when we find its match later.
+            first_occurrence[letter_idx] = i;
+        } else {
+            // This is the second occurrence of the letter. We have found a match.
+            // 2. Reveal the stored position of the first occurrence. (Second call of the pair)
+            faceup(first_occurrence[letter_index]);
+
+            // Note: Since the problem guarantees all pairs exist and we are done
+            // scanning, explicitly resetting the array entry is optional, but we
+            // do it for clarity that this letter is now matched.
+            first_occurrence[letter_idx] = -1;
+        }
+    }
+
+    return 0; // All 25 candies collected.
+}
+
+=== Code Variant 12 ===
+#include <array>
+#include <iostream>
+#include <vector>
+
+// The 'faceup' function is provided by the external judge system.
+// It reveals the card at a given 0-based index and returns its character ('A'-'Y').
+// After every two calls, the revealed cards are flipped back face-down.
+extern char faceup(int index);
+
+/**
+ * @brief Solves the Memory game using the Deterministic First-Occurrence Matching strategy.
+ *
+ * This strategy involves a single scan through all the cards. An array is used
+ * to keep track of the position of the first time each letter is seen.
+ *
+ * Algorithm:
+ * 1. Initialize an array `first_occurrence` of size 25 (for letters 'A' to 'Y')
+ *    with a sentinel value (-1) to indicate that no letters have been seen yet.
+ * 2. Iterate through each card position `i` from 0 to 49.
+ * 3. For each position `i`, call `faceup(i)`. This is the first call of a potential pair.
+ * 4. Check if this letter has been seen before by looking up its index in `first_occurrence`.
+ *    a. If it's the first time seeing this letter, store the current position `i`.
+ *    b. If it's the second time, immediately call `faceup()` on the stored position.
+ *       This second call completes the pair, collects a candy, and resets the two revealed cards.
+ *
+ * Total calls: 50 (scan) + 25 (matches) = 75 calls, satisfying the <= 100 constraint.
+ * Time Complexity: O(N) where N=50.
+ * Space Complexity: O(K) where K=25 (number of unique letters).
+ */
+int main() {
+    // Optimization for standard I/O, though not strictly needed here.
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+
+    constexpr int NUM_CARDS = 50;
+    constexpr int NUM_UNIQUE_LETTERS = 25; // 'A' through 'Y'
+
+    // `first_occurrence[letter_index]` stores the board index (0-49) of the first time
+    // the letter ('A' + letter_index) was seen. -1 means unseen.
+    std::array<int, NUM_UNIQUE_LETTERS> first_occurrence;
+    first_occurrence.fill(-1);
+
+    // Scan all 50 positions sequentially.
+    for (int i = 0; i < NUM_CARDS; ++i) {
+        // 1. Reveal the card at the current position.
+        const char revealed_char = faceup(i);
+        const int letter_idx = revealed_char - 'A';
+
+        // 2. Check the stored state.
+        if (first_occurrence[letter_idx] != -1) {
+            // Second occurrence found!
+            
+            // 3. Immediately reveal the stored first occurrence to match the pair.
+            // This second call completes the pair and collects the candy.
+            faceup(first_occurrence[letter_idx]);
+            
+            // Clean up the record since this pair is matched.
+            first_occurrence[letter_idx] = -1;
+        } else {
+            // First occurrence found. Store its position.
+            first_occurrence[letter_idx] = i;
+        }
+    }
+
+    return 0;
+}
+
+=== Code Variant 13 ===
+#include <iostream>
+#include <vector>
+#include <array>
+
+// The faceup function is provided by the external judge system.
+// It reveals the card at position (0-indexed) card_index and returns the character on that card.
+// After every two calls, both revealed cards automatically flip back face-down.
+extern char faceup(int card_index);
+
+/**
+ * Solves the Memory game using the Deterministic First-Occurrence Matching strategy.
+ * 
+ * This strategy guarantees completion in exactly 75 calls (50 for the initial scan + 25
+ * for matching the first found partner for each of the 25 pairs).
+ */
+void solve() {
+    // We use an array of size 25 for letters 'A' through 'Y'.
+    // first_occurrence[letter_idx] stores the position of the first seen occurrence.
+    // -1 indicates the letter ('A' + letter_idx) hasn't been seen yet.
+    std::array<int, 25> first_occurrence;
+    first_occurrence.fill(-1);
+
+    const int total_cards = 50;
+
+    // 1. Scan the cards sequentially from index 0 to 49.
+    for (int i = 0; i < total_cards; ++i) {
+        // Reveal the current card. (1st call for this pair, or 2nd if it's the second occurrence)
+        char revealed_char = faceup(i);
+        int letter_idx = revealed_char - 'A'; // Convert 'A'-'Y' to 0-24
+
+        // Check if we've seen this letter before.
+        if (first_occurrence[letter_idx] != -1) {
+            // Second occurrence found. Match the pair immediately.
+            // Reveal the matching first occurrence. (2nd call for this pair)
+            faceup(first_occurrence[letter_idx]);
+
+            // This pair is now matched. Clean up the array entry (optional but good practice).
+            first_occurrence[letter_idx] = -1;
+        } else {
+            // First occurrence found. Store this position.
+            first_occurrence[letter_idx] = i;
+        }
+    }
+    // Since all 25 pairs must be matched by the end of the loop (total 75 calls),
+    // the game should conclude successfully.
+}
+
+int main() {
+    // Although the problem doesn't involve input/output, standard competitive programming
+    // setup is kept clean.
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+
+    solve();
+    return 0;
+}
+
+=== Code Variant 14 ===
+#include <iostream>
+#include <vector>
+#include <array>
+
+// The judge provides this function.
+// It reveals the card at position `idx` (0-based, 0 to 49) and returns its
+// letter ('A' to 'Y'). After every two calls, the two revealed cards are
+// turned face-down again. A candy is collected the first time both copies
+// of a letter are face-up simultaneously.
+extern char faceup(int idx);
+
+/**
+ * @brief Solves the IOI 2010 "Memory" problem using Deterministic First-Occurrence Matching.
+ *
+ * This strategy iterates through all 50 card positions sequentially. It uses an
+ * array to keep track of the position where each letter ('A' through 'Y') was
+ * first encountered.
+ *
+ * When a card at position `i` is revealed:
+ * - If its letter has been seen before (at position `j`), we immediately call
+ *   `faceup(j)`. The current call `faceup(i)` and the subsequent `faceup(j)`
+ *   form a pair of calls. This ensures both matching cards are face-up at the
+ *   same time, collecting a candy.
+ * - If its letter is new, we store the current position `i` as the first
+ *   occurrence of that letter.
+ *
+ * This algorithm makes exactly 75 calls to `faceup`: 50 for the initial scan
+ * and 25 for matching the pairs. This is well within the 100-call limit for
+ * full points.
+ */
+void solve() {
+    constexpr int NUM_UNIQUE_LETTERS = 25;
+    constexpr int TOTAL_CARDS = 50;
+
+    // `first_occurrence[i]` stores the board index where the letter
+    // corresponding to `i` ('A' + i) was first seen.
+    // Initialized to -1 to indicate that no letters have been seen yet.
+    std::array<int, NUM_UNIQUE_LETTERS> first_occurrence;
+    first_occurrence.fill(-1);
+
+    // Sequentially scan all cards from position 0 to 49.
+    for (int i = 0; i < TOTAL_CARDS; ++i) {
+        // Reveal the card at the current position.
+        const char revealed_char = faceup(i);
+        const int letter_index = revealed_char - 'A';
+
+        // Check if we have seen this letter before.
+        if (first_occurrence[letter_index] != -1) {
+            // This is the second occurrence. We've found a match.
+            // The card at `i` is currently face-up. To complete the pair,
+            // we reveal the card at its stored first-occurrence position.
+            faceup(first_occurrence[letter_index]);
+        } else {
+            // This is the first time we've seen this letter.
+            // Record its position for when we find its match later.
+            first_occurrence[letter_index] = i;
+        }
+    }
+}
+
+int main() {
+    // Fast I/O is not strictly necessary for this problem as there is no
+    // standard input/output, but it is standard practice in competitive
+    // programming.
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+
+    solve();
+
+    return 0; // The program ends after all 25 pairs have been matched.
+}
+
+=== Code Variant 15 ===
+#include <array>    // For std::array
+#include <iostream> // For std::ios_base::sync_with_stdio and std::cin.tie
+
+// The `faceup` function is provided by the external judge system.
+// It reveals the card at a given 0-based index (0-49) and returns its character ('A'-'Y').
+// Crucially, after every two calls to `faceup()`, the two revealed cards
+// automatically flip back face-down.
+extern char faceup(int index);
+
+/**
+ * @brief Solves the IOI 2010 "Memory" problem using a deterministic first-occurrence matching strategy.
+ *
+ * This algorithm iterates through all 50 card positions sequentially (from 0 to 49).
+ * It maintains an array to record the first position where each unique letter ('A' through 'Y')
+ * was encountered.
+ *
+ * Algorithm Steps:
+ * 1. Initialize an `std::array<int, 25>` named `first_occurrence_pos`. Each element
+ *    is initialized to -1, indicating that the corresponding letter has not yet been seen.
+ *    (Index 0 for 'A', 1 for 'B', ..., 24 for 'Y').
+ * 2. Iterate through card indices `i` from 0 to 49:
+ *    a. Call `char revealed_char = faceup(i);` to reveal the character on the card at position `i`.
+ *       This is the first `faceup()` call within a potential pair-matching sequence.
+ *    b. Convert the `revealed_char` (e.g., 'A') to a 0-based index (e.g., 0):
+ *       `int letter_idx = revealed_char - 'A';`.
+ *    c. Check the `first_occurrence_pos` array:
+ *       - If `first_occurrence_pos[letter_idx]` is NOT -1:
+ *         This signifies that we have previously seen this letter at the position stored
+ *         in `first_occurrence_pos[letter_idx]`. This is the *second occurrence* of the letter.
+ *         To complete the pair and collect a candy, we must now reveal the first occurrence.
+ *         Call `faceup(first_occurrence_pos[letter_idx]);`. This is the second `faceup()` call
+ *         in the sequence, causing both cards (at `i` and `first_occurrence_pos[letter_idx]`)
+ *         to be face-up simultaneously. A candy is collected, and then both cards turn face-down.
+ *         The `first_occurrence_pos` entry for this letter is then reset to -1 (optional but clean),
+ *         as this pair has now been matched.
+ *       - If `first_occurrence_pos[letter_idx]` IS -1:
+ *         This is the *first occurrence* of `revealed_char`. Store its current position:
+ *         `first_occurrence_pos[letter_idx] = i;`.
+ *
+ * Call Count Analysis:
+ * - The main loop executes 50 times, making `faceup(i)` once for each card. This accounts for 50 calls.
+ * - For each of the 25 unique letter pairs, when the second occurrence is found, one additional
+ *   `faceup()` call is made to reveal its matching first occurrence. This accounts for 25 additional calls.
+ * - Total `faceup()` calls = 50 (initial scan) + 25 (matching calls) = 75 calls.
+ *   This total is well within the critical limit of 100 calls for full points.
+ *
+ * Time Complexity: O(N), where N is the total number of cards (50). Each card is processed once.
+ * Space Complexity: O(K), where K is the number of unique letters (25). An array of fixed size 25 is used.
+ */
+int main() {
+    // Fast I/O optimizations. While not strictly necessary for this problem
+    // (as there's no standard input/output), it's a standard competitive
+    // programming practice and harmless to include.
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+
+    constexpr int NUM_CARDS = 50;
+    constexpr int NUM_UNIQUE_LETTERS = 25; // 'A' through 'Y'
+
+    // `first_occurrence_pos[letter_idx]` stores the 0-indexed position (0-49)
+    // where `letter_idx` ('A'=0, 'B'=1, ..., 'Y'=24) was first revealed.
+    // Initialized to -1 to indicate that the letter has not been seen yet.
+    std::array<int, NUM_UNIQUE_LETTERS> first_occurrence_pos;
+    first_occurrence_pos.fill(-1);
+
+    // Iterate through all card positions to find and match pairs.
+    for (int i = 0; i < NUM_CARDS; ++i) {
+        // Reveal the card at the current position.
+        // This is the first `faceup` call of a potential pair.
+        const char revealed_char = faceup(i);
+        const int letter_idx = revealed_char - 'A'; // Convert 'A'-'Y' to 0-24
+
+        // Check if this letter has been seen before.
+        if (first_occurrence_pos[letter_idx] != -1) {
+            // Second occurrence found.
+            // The card at `i` is currently face-up. To match the pair,
+            // we now reveal the card at its first recorded position.
+            // This is the second `faceup` call for this pair, completing the match.
+            faceup(first_occurrence_pos[letter_idx]);
+
+            // Optional: Reset the entry as this pair is now matched.
+            // This is not strictly necessary for correctness because each letter
+            // appears exactly twice, but it keeps the data structure clean.
+            first_occurrence_pos[letter_idx] = -1;
+        } else {
+            // First occurrence. Store its position for future matching.
+            first_occurrence_pos[letter_idx] = i;
+        }
+    }
+
+    return 0; // All 25 candies have been collected upon loop completion.
+}
+
+=== Code Variant 16 ===
+#include <array>
+#include <iostream>
+
+// The 'faceup' function is provided by the external judge system.
+// It reveals the card at index (0-49) and returns the character ('A'-'Y').
+// After every two calls to faceup(), the two revealed cards are turned face-down again.
+extern char faceup(int index);
+
+/**
+ * @brief Solves the IOI 2010 "Memory" problem using deterministic first-occurrence matching.
+ *
+ * This strategy ensures that upon finding the second instance of any letter, the
+ * position of its first instance is immediately revealed, guaranteeing a match.
+ * Total calls: 50 (initial scan) + 25 (matching calls) = 75.
+ */
+int main() {
+    // Although standard I/O optimizations are not strictly necessary here,
+    // they are often included in CP templates.
+    std::ios_base::sync_with_stdio(false);
+    std::cin.tie(nullptr);
+
+    constexpr int NUM_LETTERS = 25; // 'A' through 'Y'
+    constexpr int TOTAL_CARDS = 50;
+
+    // `first_occurrence[idx]` stores the card index (0-49) where the letter ('A' + idx)
+    // was first seen. Initialized to -1 (unseen).
+    std::array<int, NUM_LETTERS> first_occurrence;
+    first_occurrence.fill(-1);
+
+    // Iterate through all card positions.
+    for (int i = 0; i < TOTAL_CARDS; ++i) {
+        // 1. Reveal the current card.
+        const char revealed_char = faceup(i);
+        const int letter_idx = revealed_char - 'A'; // Convert to index 0-24
+
+        // 2. Check if this letter has been seen before.
+        if (first_occurrence[letter_idx] != -1) {
+            // Second occurrence found. Match the pair immediately.
+            int first_pos = first_occurrence[letter_idx];
+            
+            // Reveal the card at the stored first position (Call #2 of the pair).
+            faceup(first_pos);
+            
+            // Optional: Clean up the entry since the pair is solved.
+            first_occurrence[letter_idx] = -1;
+        } else {
+            // First occurrence found. Store its position.
+            first_occurrence[letter_idx] = i;
+        }
+    }
+    
+    return 0;
+}
+

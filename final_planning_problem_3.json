@@ -1,0 +1,16 @@
+[
+  {
+    "model": "gpt-oss:120b-cloud",
+    "algorithm": "Tree DP with host‑attached extra nodes",
+    "approach": "Treat the IAmYourFriend edges as a rooted forest. For each person keep the total confidence of nodes added with the same host via MyFriendsAreYourFriends or WeAreYourFriends (extra nodes). Perform a postorder DFS; for every node u compute dp1 = w[u] + Σ dp0[child] (u selected, all children forced out) and dp0 = max( Σ max(dp0,dp1) over children , Σ dp0[child] + extraSum[u] ) (u not selected – either children act independently, or we drop all children to take all extra nodes attached to u, which are independent among themselves). The answer is Σ max(dp0,dp1) over all forest roots.",
+    "time_complexity": "O(n)",
+    "space_complexity": "O(n)"
+  },
+  {
+    "model": "minimax-m2:cloud",
+    "algorithm": "Dynamic Programming on IAmYourFriend Forest with Protocol-Specific Clique Handling",
+    "approach": "The 'IAmYourFriend' protocol naturally forms a forest structure where each person becomes a child of their host. We construct this forest and perform tree DP on it. For each node u, we maintain dp[u][0] (max independent set in u's subtree, excluding u) and dp[u][1] (including u). The 'WeAreYourFriends' protocol creates cliques around host nodes by connecting new nodes to both host and all host neighbors - we handle this by ensuring the DP transitions correctly propagate constraints: if u is selected, all neighbors (including those in WeAreYourFriends cliques) are excluded, and if u is excluded, we take the maximum from children. 'MyFriendsAreYourFriends' connects to host's friends without connecting to the host itself, which is naturally handled by the state propagation. The final answer is the sum of max(dp[root][0], dp[root][1]) over all forest roots.",
+    "time_complexity": "O(n)",
+    "space_complexity": "O(n)"
+  }
+]

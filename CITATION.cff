@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this software, cite the repository and include the version or commit hash used."
+title: "CTTR-VPS: Collective Test-Time Reasoning for Verified Program Synthesis"
+type: software
+authors:
+  - family-names: Naderali
+    given-names: Amirhosein
+repository-code: "https://github.com/amirhoseinnaderali-pixel/Reasoning-Is-All-You-Need"
+version: "0.2.0"

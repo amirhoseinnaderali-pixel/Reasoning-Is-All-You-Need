@@ -1,0 +1,6 @@
+google-genai>=1.0.0
+requests>=2.31.0
+datasets>=2.18.0
+psutil>=5.9.0
+PyYAML>=6.0
+pytest>=8.0.0
